@@ -37,8 +37,8 @@ namespace PixelCatcher
             pictureBox.Image = bitmap;
             pictureBox.Size = new Size(screenshotWidth - 2, screenshotHeight - 2);
 
-            BackColor = Color.Red;
-            Size = new Size(screenshotWidth, screenshotHeight);
+            BackColor = GetRandomColor();
+            Size = new Size(screenshotWidth+1, screenshotHeight+1);
 
             // Set the initial position of the screen capture
             this.StartPosition = FormStartPosition.Manual;
@@ -50,6 +50,12 @@ namespace PixelCatcher
             Console.WriteLine($"");
             Console.WriteLine($"");
 
+        }
+
+        private Color GetRandomColor()
+        {
+            Random rnd = new Random();
+            return Color.FromArgb(rnd.Next(256), rnd.Next(256), rnd.Next(256));
         }
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
