@@ -108,7 +108,7 @@ namespace PixelCatcher {
             bool validRect = startClickX != stopClickX && startClickY != stopClickY;
 
             // Create font and brush.
-            Font drawFont = new Font("Courier New", 11, FontStyle.Bold);
+            Font drawFont = new Font("Courier New", 10);
             SolidBrush drawBrush = new SolidBrush(Color.White);
             // Set format of string.
             StringFormat drawFormat = new StringFormat();
