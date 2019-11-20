@@ -181,7 +181,7 @@ namespace PixelCatcher {
             originalScreenBitmap = ScreenCaptureService.FullScreenshotAsBitmap();
 
             // Get a darker version of the bitmap to display
-            darkerScreenBitmap = BitmapService.ModifyBitmap(originalScreenBitmap, 0.8f, 0.8f, 1.0f);
+            darkerScreenBitmap = BitmapService.ModifyBitmap(originalScreenBitmap, 0.9f, 0.9f, 1.0f);
 
             // Setup this form so it covers the entire desktop area, spanning all monitors
             FormBorderStyle = FormBorderStyle.None;
