@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System;
+using System.Windows.Forms;
 
 namespace PixelCatcher.Views {
     public partial class AboutForm : Form {
@@ -12,6 +13,22 @@ namespace PixelCatcher.Views {
 
         private void AboutForm_MouseDoubleClick(object sender, MouseEventArgs e) {
             Close();
+        }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            try
+            {
+                VisitLink();
+            } catch (Exception Ex)
+            {
+                MessageBox.Show("Unable to open link that was clicked.");
+            }
+        }
+
+        private void VisitLink()
+        {
+            System.Diagnostics.Process.Start("https://github.com/LintfordPickle/PixelCatcher");
         }
     }
 }
