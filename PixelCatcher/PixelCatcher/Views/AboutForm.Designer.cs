@@ -63,7 +63,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(193, 29);
             this.label2.TabIndex = 2;
-            this.label2.Text = "PixelCatcher v0.1";
+            this.label2.Text = "PixelCatcher v0.2";
             // 
             // label3
             // 
