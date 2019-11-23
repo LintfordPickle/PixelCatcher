@@ -5,21 +5,51 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
-    class CaptureDesktopPresenter : ICaptureDesktopPresenter {
+    class CaptureDesktopPresenter : ICaptureDesktopPresenter, ICapturePreviewPresenter {
         private ICaptureMonitorView captureMonitorView { get; set; }
+
         public int StartClickX { get; set; }
         public int StartClickY { get; set; }
         public int StopClickX { get; set; }
         public int StopClickY { get; set; }
-        public Color PixelColorUnderMouse { get; set; }
         public Bitmap OriginalScreenBitmap { get; private set; }
         public Bitmap DarkerScreenBitmap { get; private set; }
+        public Bitmap PreviewBitmap { get; private set; }
         public Rectangle CaptureRectangle { get; private set; }
+        public Rectangle DesktopRectangle { get; private set; }
 
         public CaptureDesktopPresenter(ICaptureMonitorView captureMonitorView) {
             this.captureMonitorView = captureMonitorView;
+
+            CreateFullCaptureAreaShot();
+
+            captureMonitorView.SetDesktopCaptureBitmap(OriginalScreenBitmap, DarkerScreenBitmap, DesktopRectangle);
+
+            captureMonitorView.CaptureMouseDown += CaptureMonitorView_CaptureMouseDown;
+            captureMonitorView.CaptureMouseMove += CaptureMonitorView_CaptureMouseMove;
+            captureMonitorView.CaptureMouseUp += CaptureMonitorView_CaptureMouseUp;
+
+        }
+
+        private void CaptureMonitorView_CaptureMouseUp(object sender, MouseEventArgs e) {
+            SetStopClickPosition(e.X, e.Y);
+            CreateScreenshot();
+        }
+
+        private void CaptureMonitorView_CaptureMouseDown(object sender, MouseEventArgs e) {
+            if (e.Button == MouseButtons.Left) {
+                SetStartClickPosition(e.X, e.Y);
+            }
+        }
+
+        private void CaptureMonitorView_CaptureMouseMove(object sender, MouseEventArgs e) {
+            if (e.Button != MouseButtons.Left) {
+                SetStartClickPosition(e.X, e.Y);
+            }
+            SetStopClickPosition(e.X, e.Y);
         }
 
         public Rectangle GetSelectedCaptureArea() {
@@ -55,19 +85,26 @@ namespace PixelCatcher.Presenters {
             captureMonitorView.Close();
         }
 
+        private void UpdatePixelColorUnderMouse(int x, int y) {
+            UpdatePreviewBitmap();
+
+            captureMonitorView.pixelUnderCursorColor = OriginalScreenBitmap.GetPixel(x, y);
+        }
+
         public void SetStartClickPosition(int x, int y) {
             StartClickX = x;
             StartClickY = y;
+            captureMonitorView.StartClickPoint = new Point(StartClickX, StartClickY);
             UpdatePixelColorUnderMouse(StartClickX, StartClickY);
-        }
-
-        private void UpdatePixelColorUnderMouse(int x, int y) {
-            PixelColorUnderMouse = OriginalScreenBitmap.GetPixel(x, y);
         }
 
         public void SetStopClickPosition(int x, int y) {
             StopClickX = x;
             StopClickY = y;
+
+            // Update the selected area
+            captureMonitorView.StopClickPoint = new Point(StopClickX, StopClickY);
+            captureMonitorView.SetSelectedAreaRectangle(GetSelectedCaptureArea());
         }
 
         public Point GetTopLeftPoint() {
@@ -92,6 +129,7 @@ namespace PixelCatcher.Presenters {
 
         public void CreateFullCaptureAreaShot() {
             //  First capture a screenshot before the creation of our own window
+            DesktopRectangle = SystemInformation.VirtualScreen;
             OriginalScreenBitmap = ScreenCaptureService.FullScreenshotAsBitmap();
 
             // Get a darker version of the bitmap to display
@@ -114,16 +152,16 @@ namespace PixelCatcher.Presenters {
             return new Point(StopClickX, StopClickY);
         }
 
-        public string GetPixelColorRGB() {
-            return PixelColorUnderMouse.ToString();
+        private void UpdatePreviewBitmap() {
+            // The preview bitmap is always at the location of the end click (this is where the pointer currently 'is')
+            var previewWidth = 128;
+            var previewHeight = 128;
+            var lPreviewAreaRectangle = new Rectangle(GetEndClickPoint().X - previewWidth / 2, GetEndClickPoint().Y - previewHeight / 2, previewWidth, previewHeight);
+            PreviewBitmap = BitmapService.CropBitmap(OriginalScreenBitmap, lPreviewAreaRectangle);
         }
 
-        public string GetPixelColorHex() {
-            return PixelColorUnderMouse.R.ToString("X2") + PixelColorUnderMouse.G.ToString("X2") + PixelColorUnderMouse.B.ToString("X2");
-        }
-
-        public string GetPixelColorCMYK() {
-            throw new NotImplementedException();
+        public Bitmap GetPreviewBitmap() {
+            return PreviewBitmap;
         }
     }
 }

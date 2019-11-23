@@ -17,8 +17,5 @@ namespace PixelCatcher.Presenters {
         Bitmap GetDesktopDarkBitmap();
         Bitmap GetDesktopBitmap();
         void Close();
-        string GetPixelColorRGB();
-        string GetPixelColorHex();
-        string GetPixelColorCMYK();
     }
 }

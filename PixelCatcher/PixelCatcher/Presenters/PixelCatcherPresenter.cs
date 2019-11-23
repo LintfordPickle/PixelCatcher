@@ -25,15 +25,15 @@ namespace PixelCatcher.Presenters {
         }
 
         public void StartScreenCapture() {
-
-
             if (singeltonCaptureForm != null && !singeltonCaptureForm.IsDisposed) {
                 Console.WriteLine("(1)");
                 singeltonCaptureForm.BringToFront();
             } else {
+                // The view shoudn't know anything about the present
                 singeltonCaptureForm = new CaptureMonitorForm();
-                ICaptureDesktopPresenter lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
-                singeltonCaptureForm.AddPresenter(lCaptureDesktopPresenter);
+
+                var lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
+                
                 singeltonCaptureForm.FormClosed += delegate { singeltonCaptureForm = null; };
                 singeltonCaptureForm.Show();
             }

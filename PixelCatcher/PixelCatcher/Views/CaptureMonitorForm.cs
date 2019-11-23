@@ -4,20 +4,27 @@ using System.Windows.Forms;
 using PixelCatcher.Presenters;
 
 namespace PixelCatcher.Views {
-    public partial class CaptureMonitorForm : Form, ICaptureMonitorView {
+    public partial class CaptureMonitorForm : Form, ICaptureMonitorView, IPreviewView {
 
-        private ICaptureDesktopPresenter desktopPresenter;
+        public event MouseEventHandler CaptureMouseDown;
+        public event MouseEventHandler CaptureMouseMove;
+        public event MouseEventHandler CaptureMouseUp;
 
-        public void AddPresenter(ICaptureDesktopPresenter desktopPresenter) {
-            this.desktopPresenter = desktopPresenter;
-        }
+        public Point StartClickPoint { get; set; }
+        public Point StopClickPoint { get; set; }
+        public Bitmap originalDesktopCaptureBitmap { get; private set; }
+        public Bitmap darkDesktopCaptureBitmap { get; private set; }
+        public Rectangle SelectedArea { get; private set; }
+        public Color pixelUnderCursorColor { get; set; }
+        public Bitmap PreviewCaptureBitmap { get; private set; }
 
         public CaptureMonitorForm() {
             InitializeComponent();
         }
-
-        private void CaptureMonitorForm_Load(object sender, EventArgs e) {
-            desktopPresenter.CreateFullCaptureAreaShot();
+        
+        public void SetDesktopCaptureBitmap(Bitmap originalDesktopBitmap, Bitmap darkDesktopBitmap, Rectangle desktopArea) {
+            originalDesktopCaptureBitmap = originalDesktopBitmap;
+            darkDesktopCaptureBitmap = darkDesktopBitmap;
 
             int screenLeft = SystemInformation.VirtualScreen.Left;
             int screenTop = SystemInformation.VirtualScreen.Top;
@@ -31,33 +38,37 @@ namespace PixelCatcher.Views {
             Size = new Size(screenWidth, screenHeight);
             Location = new Point(screenLeft, screenTop);
 
-            // Update the pixture box
+            // Update the pixture box to show the darker desktop bitmap
             pictureBox.Size = new Size(screenWidth, screenHeight);
             pictureBox.Location = new Point(0, 0);
-            pictureBox.Image = desktopPresenter.GetDesktopDarkBitmap();
+            pictureBox.Image = darkDesktopBitmap;
             pictureBox.Invalidate();
 
             this.Cursor = Cursors.Cross;
+
+        }
+
+        public void SetSelectedAreaRectangle(Rectangle selectedAreaRectangle) {
+            SelectedArea = selectedAreaRectangle;
+        }
+
+        public void SetPreviewCaptureBitmap(Bitmap previewBitmap) {
+            PreviewCaptureBitmap = previewBitmap;
         }
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
-            if (e.Button == MouseButtons.Left) {
-                desktopPresenter.SetStartClickPosition(e.X, e.Y);
-            }
+            CaptureMouseDown(this, e);
         }
 
         private void pictureBox_MouseMove(object sender, MouseEventArgs e) {
-            if (e.Button != MouseButtons.Left) {
-                desktopPresenter.SetStartClickPosition(e.X, e.Y);
-            }
-            desktopPresenter.SetStopClickPosition(e.X, e.Y);
+            CaptureMouseMove(this, e);
             pictureBox.Invalidate();
         }
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
+            CaptureMouseUp(this, e);
             this.Cursor = Cursors.Default;
-            desktopPresenter.SetStopClickPosition(e.X, e.Y);
-            desktopPresenter.CreateScreenshot();
+            
         }
 
         private void pictureBox_MouseDoubleClick(object sender, MouseEventArgs e) {
@@ -72,40 +83,48 @@ namespace PixelCatcher.Views {
 
         private void pictureBox_Paint(object sender, PaintEventArgs e) {
             PaintCaptureAreaInfo(e);
-        }
 
-        private void PaintCaptureAreaInfo(PaintEventArgs e) {
+            if(isRectangleEmpty(SelectedArea)) {
+                return;
+            }
+
             PaintCaptureAreaBoundary(e);
 
             PaintCaptureArea(e);
 
-            var startClickPoint = desktopPresenter.GetStartClickPoint();
-            var stopClickPoint = desktopPresenter.GetEndClickPoint();
-            var topLeftPoint = desktopPresenter.GetTopLeftPoint();
-            var bottomRightPoint = desktopPresenter.GetBottomRightPoint();
+        }
+
+        private void PaintCaptureAreaInfo(PaintEventArgs e) {
+
+            int topLeftX = Math.Min(StartClickPoint.X, StopClickPoint.X);
+            int topLeftY = Math.Min(StartClickPoint.Y, StopClickPoint.Y);
+            int bottomRightX = Math.Max(StartClickPoint.X, StopClickPoint.X);
+            int bottomRightY = Math.Max(StartClickPoint.Y, StopClickPoint.Y);
 
             // Create font and brush.
             Font drawFont = new Font("Courier New", 10);
             SolidBrush drawBrush = new SolidBrush(Color.White);
             StringFormat drawFormat = new StringFormat();
 
-            var startCoordString = $"{topLeftPoint.X},{topLeftPoint.Y}";
-            var endCoordString = $"{bottomRightPoint.X},{bottomRightPoint.Y}";
+            var startCoordString = $"{topLeftX},{topLeftY}";
+            var endCoordString = $"{bottomRightX},{bottomRightY}";
 
             var startStringSize = e.Graphics.MeasureString(startCoordString, drawFont);
             var endStringSize = e.Graphics.MeasureString(endCoordString, drawFont);
 
-            float xPos = topLeftPoint.X;
-            float yPos = (topLeftPoint.Y < bottomRightPoint.Y) ? topLeftPoint.Y - startStringSize.Height : topLeftPoint.Y - startStringSize.Height;
+            float xPos = topLeftX;
+            float yPos = (topLeftY < bottomRightY) ? topLeftY - startStringSize.Height : topLeftY - startStringSize.Height;
 
-            if (startClickPoint.X < stopClickPoint.X)
+            if (StartClickPoint.X < StopClickPoint.X)
                 e.Graphics.DrawString(startCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
             else
                 e.Graphics.DrawString(endCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
 
-            if (!desktopPresenter.GetIsSelectedRectangleValid()) {
-                var pixelColorStringRGB = desktopPresenter.GetPixelColorRGB();
-                var pixelColorStringHex = desktopPresenter.GetPixelColorHex();
+            if (isRectangleEmpty(SelectedArea)) {
+
+
+                var pixelColorStringRGB = GetPixelColorRGB();
+                var pixelColorStringHex = GetPixelColorHex();
                 
                 e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrush, xPos, yPos - startStringSize.Height, drawFormat);
                 e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrush, xPos, yPos - startStringSize.Height*2, drawFormat);
@@ -113,61 +132,59 @@ namespace PixelCatcher.Views {
                 return;
             }
 
-            int screenshotWidth = desktopPresenter.GetScreenshotWidth();
-            int screenshotHeight = desktopPresenter.GetScreenshotHeight();
+            int screenshotWidth = Math.Abs(StartClickPoint.X - StopClickPoint.X);
+            int screenshotHeight = Math.Abs(StartClickPoint.Y - StopClickPoint.Y);
             string screenshotWidthMsg = $"{screenshotWidth} px";
             string screenshotHeightMsg = $"{screenshotHeight} px";
 
-            xPos = bottomRightPoint.X - endStringSize.Width;
-            yPos = (startClickPoint.Y < stopClickPoint.Y) ? stopClickPoint.Y : bottomRightPoint.Y;
+            xPos = bottomRightX - endStringSize.Width;
+            yPos = (StartClickPoint.Y < StopClickPoint.Y) ? StopClickPoint.Y : bottomRightY;
 
-            if (startClickPoint.X < stopClickPoint.X)
+            if (StartClickPoint.X < StopClickPoint.X)
                 e.Graphics.DrawString(endCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
             else
                 e.Graphics.DrawString(startCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
 
-            xPos = bottomRightPoint.X - screenshotWidth;
-            yPos = (startClickPoint.Y < stopClickPoint.Y) ? stopClickPoint.Y : bottomRightPoint.Y;
+            xPos = bottomRightX - screenshotWidth;
+            yPos = (StartClickPoint.Y < StopClickPoint.Y) ? StopClickPoint.Y : bottomRightY;
             e.Graphics.DrawString(screenshotWidthMsg, drawFont, drawBrush, xPos, yPos, drawFormat);
 
             var heightMsgSize = e.Graphics.MeasureString(screenshotHeightMsg, drawFont);
-            xPos = bottomRightPoint.X;
+            xPos = bottomRightX;
             yPos -= screenshotHeight;
             drawFormat.FormatFlags = StringFormatFlags.DirectionVertical;
             e.Graphics.DrawString(screenshotHeightMsg, drawFont, drawBrush, xPos, yPos, drawFormat);
+            
+        }
 
+        private bool isRectangleEmpty(Rectangle rect) {
+            return rect.Width == 0 && rect.Height == 0;
+        }
+
+        public string GetPixelColorRGB() {
+            return $"R:{pixelUnderCursorColor.R.ToString("D3")} G:{pixelUnderCursorColor.G.ToString("D3")} B:{pixelUnderCursorColor.B.ToString("D3")}";
+        }
+
+        public string GetPixelColorHex() {
+            return $"#{pixelUnderCursorColor.R.ToString("X2")}{pixelUnderCursorColor.G.ToString("X2")}{pixelUnderCursorColor.B.ToString("X2")}";
         }
 
         private void PaintCaptureAreaBoundary(PaintEventArgs e) {
-            if (!desktopPresenter.GetIsSelectedRectangleValid()) {
-                return;
-            }
-
-            // Draw rectangle to screen.
             Pen pen = new Pen(Color.Red, 2);
             pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
-            e.Graphics.DrawRectangle(pen, desktopPresenter.GetSelectedCaptureArea());
+            e.Graphics.DrawRectangle(pen, SelectedArea);
         }
 
         private void PaintCaptureArea(PaintEventArgs e) {
-            if(!desktopPresenter.GetIsSelectedRectangleValid()) {
-                return;
-            }
-
-            var topLeftPoint = desktopPresenter.GetTopLeftPoint();
-
             // Get the selected rectangle area from the original (bright) bitmap
-            Bitmap adjustedBitmap = BitmapService.CropBitmap(desktopPresenter.GetDesktopBitmap(), desktopPresenter.GetSelectedCaptureArea());
-            var originalBitmapWidth = desktopPresenter.GetDesktopBitmap().Width;
-            var originalBitmapHeight = desktopPresenter.GetDesktopBitmap().Height;
+            Bitmap adjustedBitmap = BitmapService.CropBitmap(originalDesktopCaptureBitmap, SelectedArea);
 
             // if no cropping occured, default to the darker capture
-            if (adjustedBitmap.Width == originalBitmapWidth && adjustedBitmap.Height == originalBitmapHeight) {
-                adjustedBitmap = desktopPresenter.GetDesktopDarkBitmap();
+            if (adjustedBitmap.Width == originalDesktopCaptureBitmap.Width && adjustedBitmap.Height == originalDesktopCaptureBitmap.Height) {
+                adjustedBitmap = darkDesktopCaptureBitmap;
             }
 
-            e.Graphics.DrawImage(adjustedBitmap, topLeftPoint.X, topLeftPoint.Y);
+            e.Graphics.DrawImage(adjustedBitmap, SelectedArea.X, SelectedArea.Y);
         }
-
     }
 }
