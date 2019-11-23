@@ -15,20 +15,17 @@ namespace PixelCatcher.Views {
             Close();
         }
 
-        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            try
-            {
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
+            try {
                 VisitLink();
-            } catch (Exception Ex)
-            {
-                MessageBox.Show("Unable to open link that was clicked.");
+            } catch (Exception exception) {
+                MessageBox.Show($"Unable to open link that was clicked.{Environment.NewLine}{exception.Message}");
             }
         }
 
-        private void VisitLink()
-        {
-            System.Diagnostics.Process.Start("https://github.com/LintfordPickle/PixelCatcher");
+        private void VisitLink() {
+            System.Diagnostics.Process.Start("");
+
         }
     }
 }
