@@ -1,6 +1,6 @@
 ﻿namespace PixelCatcher
 {
-    partial class ScreenshotForm
+    partial class ScreenshotView
     {
         /// <summary>
         /// Required designer variable.

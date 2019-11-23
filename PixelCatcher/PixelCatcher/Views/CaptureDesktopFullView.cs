@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using PixelCatcher.Presenters;
 
 namespace PixelCatcher.Views {
-    public partial class CaptureMonitorForm : Form, ICaptureMonitorView, IPreviewView {
+    public partial class CaptureDesktopFullView : Form, ICaptureDesktopView, IPreviewView {
 
         public event MouseEventHandler CaptureMouseDown;
         public event MouseEventHandler CaptureMouseMove;
@@ -16,15 +15,22 @@ namespace PixelCatcher.Views {
         public Bitmap darkDesktopCaptureBitmap { get; private set; }
         public Rectangle SelectedArea { get; private set; }
         public Color pixelUnderCursorColor { get; set; }
-        public Bitmap PreviewCaptureBitmap { get; private set; }
 
-        public CaptureMonitorForm() {
+        public Bitmap previewBitmap { get; private set; }
+        public Size previewSize { get; private set; }
+        public float previewScale { get; private set; }
+
+        public CaptureDesktopFullView() {
             InitializeComponent();
+
+            previewSize = new Size(64, 64);
+            previewScale = 3;
         }
-        
-        public void SetDesktopCaptureBitmap(Bitmap originalDesktopBitmap, Bitmap darkDesktopBitmap, Rectangle desktopArea) {
+
+        public void SetDesktopCaptureBitmap(Bitmap originalDesktopBitmap, Rectangle desktopArea) {
             originalDesktopCaptureBitmap = originalDesktopBitmap;
-            darkDesktopCaptureBitmap = darkDesktopBitmap;
+            // Get a darker version of the bitmap to display
+            darkDesktopCaptureBitmap = BitmapService.ModifyBitmap(originalDesktopCaptureBitmap, 0.9f, 0.9f, 1.0f);
 
             int screenLeft = SystemInformation.VirtualScreen.Left;
             int screenTop = SystemInformation.VirtualScreen.Top;
@@ -41,19 +47,14 @@ namespace PixelCatcher.Views {
             // Update the pixture box to show the darker desktop bitmap
             pictureBox.Size = new Size(screenWidth, screenHeight);
             pictureBox.Location = new Point(0, 0);
-            pictureBox.Image = darkDesktopBitmap;
+            pictureBox.Image = darkDesktopCaptureBitmap;
             pictureBox.Invalidate();
 
             this.Cursor = Cursors.Cross;
-
         }
 
         public void SetSelectedAreaRectangle(Rectangle selectedAreaRectangle) {
             SelectedArea = selectedAreaRectangle;
-        }
-
-        public void SetPreviewCaptureBitmap(Bitmap previewBitmap) {
-            PreviewCaptureBitmap = previewBitmap;
         }
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
@@ -62,13 +63,14 @@ namespace PixelCatcher.Views {
 
         private void pictureBox_MouseMove(object sender, MouseEventArgs e) {
             CaptureMouseMove(this, e);
+            UpdatePreviewBitmap();
             pictureBox.Invalidate();
         }
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
             CaptureMouseUp(this, e);
             this.Cursor = Cursors.Default;
-            
+
         }
 
         private void pictureBox_MouseDoubleClick(object sender, MouseEventArgs e) {
@@ -83,13 +85,13 @@ namespace PixelCatcher.Views {
 
         private void pictureBox_Paint(object sender, PaintEventArgs e) {
             PaintCaptureAreaInfo(e);
+            PaintPreviewImage(e);
 
-            if(isRectangleEmpty(SelectedArea)) {
+            if (isRectangleEmpty(SelectedArea)) {
                 return;
             }
 
             PaintCaptureAreaBoundary(e);
-
             PaintCaptureArea(e);
 
         }
@@ -121,14 +123,6 @@ namespace PixelCatcher.Views {
                 e.Graphics.DrawString(endCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
 
             if (isRectangleEmpty(SelectedArea)) {
-
-
-                var pixelColorStringRGB = GetPixelColorRGB();
-                var pixelColorStringHex = GetPixelColorHex();
-                
-                e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrush, xPos, yPos - startStringSize.Height, drawFormat);
-                e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrush, xPos, yPos - startStringSize.Height*2, drawFormat);
-
                 return;
             }
 
@@ -154,11 +148,15 @@ namespace PixelCatcher.Views {
             yPos -= screenshotHeight;
             drawFormat.FormatFlags = StringFormatFlags.DirectionVertical;
             e.Graphics.DrawString(screenshotHeightMsg, drawFont, drawBrush, xPos, yPos, drawFormat);
-            
+
         }
 
+        /// <summary>
+        /// Checks if any of the given rectangle's dimensions are 0, which we define a an empty rectangle.
+        /// </summary>
+        /// <returns>True if any of the rectangle's dimensions are 0, false otherwise.</returns>
         private bool isRectangleEmpty(Rectangle rect) {
-            return rect.Width == 0 && rect.Height == 0;
+            return rect.Width == 0 || rect.Height == 0;
         }
 
         public string GetPixelColorRGB() {
@@ -185,6 +183,62 @@ namespace PixelCatcher.Views {
             }
 
             e.Graphics.DrawImage(adjustedBitmap, SelectedArea.X, SelectedArea.Y);
+        }
+
+        private void PaintPreviewImage(PaintEventArgs e) {
+            var brushPanelBackground = new SolidBrush(Color.FromArgb(47, 54, 64));
+            var drawBrushBlack = new SolidBrush(Color.Black);
+            var drawBrushWhite = new SolidBrush(Color.White);
+
+            // Draw a background panel
+            e.Graphics.FillRectangle(brushPanelBackground, new Rectangle(3, 3, 350, 68));
+
+            // Create font and brush.
+            var drawFont = new Font("Courier New", 10);
+            var drawFormat = new StringFormat();
+
+            if (isRectangleEmpty(SelectedArea)) {
+                var pixelColorStringRGB = GetPixelColorRGB();
+                var pixelColorStringHex = GetPixelColorHex();
+
+                var xPos = 5 + previewSize.Width + 5f;
+                var yPos = 5;
+
+                e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushBlack, xPos - 2, yPos + 2, drawFormat);
+                e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushWhite, xPos, yPos, drawFormat);
+
+                e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushBlack, xPos - 2, yPos + 25 + 2, drawFormat);
+                e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushWhite, xPos, yPos + 25, drawFormat);
+            }
+
+            if (previewBitmap == null) {
+                return;
+            }
+
+            e.Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighSpeed;
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+
+            e.Graphics.DrawImage(previewBitmap, 5, 5, previewSize.Width, previewSize.Height);
+
+        }
+
+        private void UpdatePreviewBitmap() {
+            // The preview bitmap is always at the location of the end click (this is where the pointer currently 'is')
+            var previewWidth = previewSize.Width / previewScale;
+            var previewHeight = previewSize.Height / previewScale;
+            var lPreviewAreaRectangle = new Rectangle((int)(StopClickPoint.X - previewWidth / 2), (int)(StopClickPoint.Y - previewHeight / 2), (int)previewWidth, (int)previewHeight);
+            previewBitmap = BitmapService.CropBitmap(originalDesktopCaptureBitmap, lPreviewAreaRectangle);
+            previewBitmap.SetPixel((int)(previewWidth * 0.5f), (int)(previewHeight * 0.5f), Color.Red);
+        }
+
+        public void SetPreviewSize(Size previewSize) {
+            this.previewSize = previewSize;
+        }
+
+        public void SetPreviewMagnification(float previewScale) {
+            this.previewScale = previewScale;
         }
     }
 }

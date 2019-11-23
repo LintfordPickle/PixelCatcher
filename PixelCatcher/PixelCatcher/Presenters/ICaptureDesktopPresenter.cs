@@ -12,9 +12,8 @@ namespace PixelCatcher.Presenters {
         int GetScreenshotWidth();
         int GetScreenshotHeight();
         bool GetIsSelectedRectangleValid();
-        void CreateScreenshot();
+        void CreateNewScreenshot();
         void CreateFullCaptureAreaShot();
-        Bitmap GetDesktopDarkBitmap();
         Bitmap GetDesktopBitmap();
         void Close();
     }

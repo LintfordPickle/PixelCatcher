@@ -13,27 +13,40 @@ namespace PixelCatcher.Presenters {
         public const int MOD_CONTROL = 0x0002;
         public const int MOD_SHIFT = 0x0004;
 
-        private static CaptureMonitorForm singeltonCaptureForm;
-        private static AboutForm singeltonAboutForm;
+        private static ICaptureDesktopView singeltonCaptureForm;
+        private IAboutView singeltonAboutForm;
         private AboutInformation aboutInformation;
+        private IPixelCatcherView pixelCatcherView;
 
-        public PixelCatcherPresenter(AboutInformation aboutInformation) {
+        public PixelCatcherPresenter(IAboutView aboutView, IPixelCatcherView pixelCatcherView, AboutInformation aboutInformation) {
             this.aboutInformation = aboutInformation;
+            this.pixelCatcherView = pixelCatcherView;
+            
+            singeltonAboutForm = aboutView;
 
+            pixelCatcherView.ShowAboutBox += PixelCatcherView_ShowAboutBox;
+
+            Application.AddMessageFilter(this);
 
             RegisterGlobalHotkey();
+ 
+        }
+
+        private void PixelCatcherView_ShowAboutBox(object sender, EventArgs e) {
+            ShowAboutForm();
         }
 
         public void StartScreenCapture() {
             if (singeltonCaptureForm != null && !singeltonCaptureForm.IsDisposed) {
-                Console.WriteLine("(1)");
                 singeltonCaptureForm.BringToFront();
             } else {
-                // The view shoudn't know anything about the present
-                singeltonCaptureForm = new CaptureMonitorForm();
+
+                // TODO: Add options to switch between full view and info view
+                // singeltonCaptureForm = new CaptureDesktopFullView();
+                singeltonCaptureForm = new CaptureDesktopView();
 
                 var lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
-                
+
                 singeltonCaptureForm.FormClosed += delegate { singeltonCaptureForm = null; };
                 singeltonCaptureForm.Show();
             }
@@ -63,11 +76,11 @@ namespace PixelCatcher.Presenters {
             if (singeltonAboutForm != null && singeltonAboutForm.IsDisposed) {
                 singeltonAboutForm.BringToFront();
             } else {
-                singeltonAboutForm = new AboutForm();
+                singeltonAboutForm = new AboutView();
                 singeltonAboutForm.FormClosed += delegate { singeltonAboutForm = null; };
+                singeltonAboutForm.visitAboutUrl += delegate { System.Diagnostics.Process.Start(AboutInformation.websiteUrl); };
                 singeltonAboutForm.Show();
             }
         }
-
     }
 }

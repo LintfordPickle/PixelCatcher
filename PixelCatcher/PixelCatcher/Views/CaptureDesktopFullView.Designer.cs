@@ -1,5 +1,5 @@
 ﻿namespace PixelCatcher.Views {
-    partial class CaptureMonitorForm {
+    partial class CaptureDesktopFullView {
         /// <summary>
         /// Required designer variable.
         /// </summary>

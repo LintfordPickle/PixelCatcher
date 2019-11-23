@@ -1,4 +1,7 @@
-﻿using System;
+﻿using PixelCatcher.Models;
+using PixelCatcher.Presenters;
+using PixelCatcher.Views;
+using System;
 using System.Windows.Forms;
 
 namespace PixelCatcher {
@@ -10,7 +13,19 @@ namespace PixelCatcher {
         static void Main() {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new PixelCatcherMain());
+
+            StartPixelCapture();
+        }
+
+        static void StartPixelCapture() {
+            var pixelCatcherView = new PixelCatcherView();
+            var aboutInformation = new AboutInformation();
+            var aboutView = new AboutView();
+
+            var pixelCatcherPresenter = new PixelCatcherPresenter(aboutView, pixelCatcherView, aboutInformation);
+
+            Application.Run(pixelCatcherView);
+
         }
     }
 }

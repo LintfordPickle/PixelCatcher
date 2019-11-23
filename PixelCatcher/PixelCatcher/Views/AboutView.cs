@@ -2,8 +2,11 @@
 using System.Windows.Forms;
 
 namespace PixelCatcher.Views {
-    public partial class AboutForm : Form {
-        public AboutForm() {
+    public partial class AboutView : Form, IAboutView {
+
+        public event EventHandler visitAboutUrl;
+
+        public AboutView() {
             InitializeComponent();
         }
 
@@ -16,16 +19,7 @@ namespace PixelCatcher.Views {
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
-            try {
-                VisitLink();
-            } catch (Exception exception) {
-                MessageBox.Show($"Unable to open link that was clicked.{Environment.NewLine}{exception.Message}");
-            }
-        }
-
-        private void VisitLink() {
-            System.Diagnostics.Process.Start("");
-
+            visitAboutUrl(this, e);
         }
     }
 }

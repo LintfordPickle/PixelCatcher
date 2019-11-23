@@ -50,46 +50,58 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\AboutInformation.cs" />
-    <Compile Include="Models\Screenshot.cs" />
+    <Compile Include="Models\ScreenshotModel.cs" />
     <Compile Include="Presenters\CaptureDesktopPresenter.cs" />
-    <Compile Include="Presenters\ICapturePreviewPresenter.cs" />
     <Compile Include="Presenters\ICaptureDesktopPresenter.cs" />
     <Compile Include="Presenters\IPixelCatcherPresenter.cs" />
     <Compile Include="Presenters\PixelCatcherPresenter.cs" />
     <Compile Include="Helpers\ScreenCaptureHelper.cs" />
-    <Compile Include="Views\CaptureMonitorForm.cs">
+    <Compile Include="Presenters\ScreenshotPresenter.cs" />
+    <Compile Include="Views\CaptureDesktopFullView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Views\CaptureMonitorForm.Designer.cs">
-      <DependentUpon>CaptureMonitorForm.cs</DependentUpon>
+    <Compile Include="Views\CaptureDesktopFullView.Designer.cs">
+      <DependentUpon>CaptureDesktopFullView.cs</DependentUpon>
     </Compile>
-    <Compile Include="Views\AboutForm.cs">
+    <Compile Include="Views\CaptureDesktopView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Views\AboutForm.Designer.cs">
-      <DependentUpon>AboutForm.cs</DependentUpon>
+    <Compile Include="Views\CaptureDesktopView.Designer.cs">
+      <DependentUpon>CaptureDesktopView.cs</DependentUpon>
     </Compile>
-    <Compile Include="PixelCatcherMain.cs" />
+    <Compile Include="Views\AboutView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Views\AboutView.Designer.cs">
+      <DependentUpon>AboutView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Views\IAboutView.cs" />
+    <Compile Include="Views\IPixelCatcherView.cs" />
+    <Compile Include="Views\IScreenshotView.cs" />
+    <Compile Include="Views\PixelCatcherView.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Helpers\BitmapHelper.cs" />
-    <Compile Include="Views\ICaptureMonitorView.cs" />
+    <Compile Include="Views\ICaptureDesktopView.cs" />
     <Compile Include="Views\IPreviewView.cs" />
-    <Compile Include="Views\ScreenshotForm.cs">
+    <Compile Include="Views\ScreenshotView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Views\ScreenshotForm.Designer.cs">
-      <DependentUpon>ScreenshotForm.cs</DependentUpon>
+    <Compile Include="Views\ScreenshotView.Designer.cs">
+      <DependentUpon>ScreenshotView.cs</DependentUpon>
     </Compile>
     <Compile Include="Helpers\User32Helper.cs" />
-    <EmbeddedResource Include="Views\AboutForm.resx">
-      <DependentUpon>AboutForm.cs</DependentUpon>
+    <EmbeddedResource Include="Views\AboutView.resx">
+      <DependentUpon>AboutView.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Views\CaptureMonitorForm.resx">
-      <DependentUpon>CaptureMonitorForm.cs</DependentUpon>
+    <EmbeddedResource Include="Views\CaptureDesktopFullView.resx">
+      <DependentUpon>CaptureDesktopFullView.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="PixelCatcherMain.resx">
-      <DependentUpon>PixelCatcherMain.cs</DependentUpon>
+    <EmbeddedResource Include="Views\CaptureDesktopView.resx">
+      <DependentUpon>CaptureDesktopView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Views\PixelCatcherView.resx">
+      <DependentUpon>PixelCatcherView.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -100,8 +112,8 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="Views\ScreenshotForm.resx">
-      <DependentUpon>ScreenshotForm.cs</DependentUpon>
+    <EmbeddedResource Include="Views\ScreenshotView.resx">
+      <DependentUpon>ScreenshotView.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -120,8 +132,6 @@
     <Content Include="pagers_windows.ico" />
     <Content Include="Res\pagers_windows.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Services\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

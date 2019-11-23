@@ -2,6 +2,7 @@
 
 namespace PixelCatcher.Views {
     public interface IPreviewView {
-        void SetPreviewCaptureBitmap(Bitmap bitmap);
+        void SetPreviewSize(Size previewSize);
+        void SetPreviewMagnification(float previewScale);
     }
 }

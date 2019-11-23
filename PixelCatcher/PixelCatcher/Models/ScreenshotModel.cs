@@ -7,35 +7,35 @@ using System.Threading.Tasks;
 using System.ComponentModel;
 
 namespace PixelCatcher.Models {
-    public class Screenshot : INotifyPropertyChanged {
-        private Bitmap bitmap;
-        private int screenshotWidth;
-        private int screenshotHeight;
+    public class ScreenshotModel : INotifyPropertyChanged {
+        private Bitmap screenshotBitmap;
+        private Point topLeftPosition;
 
         private event PropertyChangedEventHandler propertyChanged;
 
         public Bitmap ScreenshotBitmap {
-            get { return bitmap; }
+            get { return screenshotBitmap; }
             set {
-                bitmap = value;
+                screenshotBitmap = value;
                 FirePropertyChanged("ScreenshotBitmap");
             }
         }
 
+        public Point TopLeftPosition {
+            get { return topLeftPosition; }
+        }
+
         public int ScreenshotWidth {
-            get { return screenshotWidth; }
-            set {
-                screenshotWidth = value;
-                FirePropertyChanged("screenshotWidth");
-            }
+            get { return screenshotBitmap.Width; }
         }
 
         public int ScreenshotHeight {
-            get { return screenshotHeight; }
-            set {
-                screenshotHeight = value;
-                FirePropertyChanged("screenshotHeight");
-            }
+            get { return screenshotBitmap.Height; }
+        }
+
+        public ScreenshotModel(Bitmap screenshotBitmap, Point topLeftPoint) {
+            this.screenshotBitmap = screenshotBitmap;
+            this.topLeftPosition = topLeftPoint;
         }
 
         public event PropertyChangedEventHandler PropertyChanged {

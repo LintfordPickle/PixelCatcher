@@ -1,31 +1,31 @@
 ﻿using System;
 using System.Windows.Forms;
-using PixelCatcher.Models;
-using PixelCatcher.Presenters;
+using PixelCatcher.Views;
 
 namespace PixelCatcher {
-    public partial class PixelCatcherMain : ApplicationContext {
-
-        private IPixelCatcherPresenter pixelCatcherPresenter;
+    public partial class PixelCatcherView : ApplicationContext, IPixelCatcherView {
 
         private System.ComponentModel.IContainer components = null;
+
         private NotifyIcon notifyIcon1;
         private ContextMenuStrip contextMenuStrip1;
         private ToolStripMenuItem exitToolStripMenuItem;
         private ToolStripMenuItem aboutToolStripMenuItem;
 
-        public PixelCatcherMain() {
+        public event EventHandler ShowAboutBox;
+
+        public PixelCatcherView() {
             InitializeComponent();
 
-            AboutInformation aboutInformationModel = new AboutInformation();
+        }
 
-            pixelCatcherPresenter = new PixelCatcherPresenter(aboutInformationModel);
-            Application.AddMessageFilter((PixelCatcherPresenter)pixelCatcherPresenter);
+        public ApplicationContext GetApplicationContext() {
+            return this;
         }
 
         private void InitializeComponent() {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PixelCatcherMain));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PixelCatcherView));
             this.notifyIcon1 = new NotifyIcon(this.components);
             this.contextMenuStrip1 = new ContextMenuStrip(this.components);
             this.exitToolStripMenuItem = new ToolStripMenuItem();
@@ -79,7 +79,7 @@ namespace PixelCatcher {
         }
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e) {
-            pixelCatcherPresenter.ShowAboutForm();
+            ShowAboutBox?.Invoke(this, e);
         }
     }
 }
