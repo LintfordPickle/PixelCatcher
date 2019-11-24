@@ -15,6 +15,7 @@ namespace PixelCatcher.Views {
         public Bitmap darkDesktopCaptureBitmap { get; private set; }
         public Rectangle SelectedArea { get; private set; }
         public Color pixelUnderCursorColor { get; set; }
+
         public Bitmap previewBitmap { get; private set; }
         public Size previewSize { get; private set; }
         public float previewScale { get; private set; }
@@ -57,17 +58,17 @@ namespace PixelCatcher.Views {
         }
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
-            CaptureMouseDown(this, e);
+            CaptureMouseDown?.Invoke(this, e);
         }
 
         private void pictureBox_MouseMove(object sender, MouseEventArgs e) {
-            CaptureMouseMove(this, e);
+            CaptureMouseMove?.Invoke(this, e);
             UpdatePreviewBitmap();
             pictureBox.Invalidate();
         }
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
-            CaptureMouseUp(this, e);
+            CaptureMouseUp?.Invoke(this, e);
             Cursor = Cursors.Default;
 
         }
@@ -83,7 +84,6 @@ namespace PixelCatcher.Views {
         }
 
         private void pictureBox_Paint(object sender, PaintEventArgs e) {
-            PaintCaptureAreaInfo(e);
             PaintPreviewImage(e);
 
             if (isRectangleEmpty(SelectedArea)) {
@@ -92,10 +92,6 @@ namespace PixelCatcher.Views {
 
             PaintCaptureAreaBoundary(e);
             PaintCaptureArea(e);
-
-        }
-
-        private void PaintCaptureAreaInfo(PaintEventArgs e) {
 
         }
 
@@ -147,20 +143,20 @@ namespace PixelCatcher.Views {
 
             var pixelColorStringRGB = GetPixelColorRGB();
             var pixelColorStringHex = GetPixelColorHex();
-            var rectangleBoundsString = $"{SelectedArea.X} {SelectedArea.Y} {SelectedArea.Width} {SelectedArea.Height}";
+            var rectangleAreaInfo = $"{SelectedArea.X} {SelectedArea.Y} {SelectedArea.Width} {SelectedArea.Height}";
 
+            var fontHeight = drawFont.GetHeight();
             var xPos = 5 + previewSize.Width + 5f;
             var yPos = 5;
 
-            var fontHeight = drawFont.GetHeight();
             e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushBlack, xPos - 2, yPos + 2, drawFormat);
             e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushWhite, xPos, yPos, drawFormat);
 
             e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushBlack, xPos - 2, yPos + fontHeight + 2, drawFormat);
             e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushWhite, xPos, yPos + fontHeight, drawFormat);
 
-            e.Graphics.DrawString(rectangleBoundsString, drawFont, drawBrushBlack, xPos - 2, yPos + fontHeight*2 + 2, drawFormat);
-            e.Graphics.DrawString(rectangleBoundsString, drawFont, drawBrushWhite, xPos, yPos + fontHeight*2, drawFormat);
+            e.Graphics.DrawString(rectangleAreaInfo, drawFont, drawBrushBlack, xPos - 2, yPos + fontHeight*2 + 2, drawFormat);
+            e.Graphics.DrawString(rectangleAreaInfo, drawFont, drawBrushWhite, xPos, yPos + fontHeight*2, drawFormat);
 
             if (previewBitmap == null) {
                 return;

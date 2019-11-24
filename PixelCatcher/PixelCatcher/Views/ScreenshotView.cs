@@ -11,11 +11,15 @@ namespace PixelCatcher {
         private int screenshotWidth;
         private int screenshotHeight;
 
+        // TODO: Add option to support screenshot border sizes and colors
+        public int BorderSize { get; set; }
+
         public event EventHandler CopyScreenshotToClipboard;
         public event EventHandler SaveScreenshotToFile;
 
         public ScreenshotView() {
             InitializeComponent();
+            BorderSize = 1;
         }
 
         public void SetBitmap(Bitmap screenshotBitmap, Point topLeft) {
@@ -30,14 +34,13 @@ namespace PixelCatcher {
             screenshotWidth = this.screenshotBitmap.Width;
             screenshotHeight = this.screenshotBitmap.Height;
 
-            // TODO: Add option to support screenshot border sizes and colors
-            int borderSize = 2;
-            pictureBox.Location = new Point(borderSize, borderSize);
+            
+            pictureBox.Location = new Point(BorderSize, BorderSize);
             pictureBox.Image = this.screenshotBitmap;
-            pictureBox.Size = new Size(screenshotWidth - borderSize*2, screenshotHeight - borderSize*2);
+            pictureBox.Size = new Size(screenshotWidth- BorderSize, screenshotHeight - BorderSize);
 
             BackColor = GetRandomColor();
-            Size = new Size(screenshotWidth + borderSize*2, screenshotHeight + borderSize*2);
+            Size = new Size(screenshotWidth + BorderSize * 2, screenshotHeight + BorderSize * 2);
 
             // Set the initial position of the screen capture
             StartPosition = FormStartPosition.Manual;
@@ -85,7 +88,7 @@ namespace PixelCatcher {
         }
 
         private void ScreenshotForm_Shown(object sender, EventArgs e) {
-            Size = new Size(screenshotWidth, screenshotHeight);
+            Size = new Size(screenshotWidth+ BorderSize, screenshotHeight+ BorderSize);
         }
     }
 }

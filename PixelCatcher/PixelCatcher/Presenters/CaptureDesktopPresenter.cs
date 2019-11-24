@@ -56,6 +56,12 @@ namespace PixelCatcher.Presenters {
             return new Rectangle(x, y, width, height);
         }
 
+        private Rectangle IncreaseRectangleSize(Rectangle rectangle, int size) {
+            rectangle.Width += size;
+            rectangle.Height += size;
+            return rectangle;
+        }
+
         public void CreateNewScreenshot() {
             if (!GetIsSelectedRectangleValid()) {
                 Close();
