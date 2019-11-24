@@ -227,7 +227,7 @@ namespace PixelCatcher.Views {
             var previewHeight = previewSize.Height / previewScale;
             var lPreviewAreaRectangle = new Rectangle((int)(StopClickPoint.X - previewWidth / 2), (int)(StopClickPoint.Y - previewHeight / 2), (int)previewWidth, (int)previewHeight);
             previewBitmap = BitmapService.CropBitmap(originalDesktopCaptureBitmap, lPreviewAreaRectangle);
-            previewBitmap.SetPixel((int)(previewWidth * 0.5f), (int)(previewHeight * 0.5f), Color.Red);
+            previewBitmap.SetPixel((int)(previewWidth * 0.5f)+1, (int)(previewHeight * 0.5f)+1, Color.Red);
         }
 
         public void SetPreviewSize(Size previewSize) {
