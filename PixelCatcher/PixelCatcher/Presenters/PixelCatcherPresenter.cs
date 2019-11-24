@@ -15,13 +15,13 @@ namespace PixelCatcher.Presenters {
 
         private static ICaptureDesktopView singeltonCaptureForm;
         private IAboutView singeltonAboutForm;
-        private AboutInformation aboutInformation;
-        private IPixelCatcherView pixelCatcherView;
+        private readonly AboutInformation aboutInformation;
+        private readonly IPixelCatcherView pixelCatcherView;
 
         public PixelCatcherPresenter(IAboutView aboutView, IPixelCatcherView pixelCatcherView, AboutInformation aboutInformation) {
             this.aboutInformation = aboutInformation;
             this.pixelCatcherView = pixelCatcherView;
-            
+
             singeltonAboutForm = aboutView;
 
             pixelCatcherView.ShowAboutBox += PixelCatcherView_ShowAboutBox;
@@ -29,7 +29,7 @@ namespace PixelCatcher.Presenters {
             Application.AddMessageFilter(this);
 
             RegisterGlobalHotkey();
- 
+
         }
 
         private void PixelCatcherView_ShowAboutBox(object sender, EventArgs e) {
@@ -42,8 +42,8 @@ namespace PixelCatcher.Presenters {
             } else {
 
                 // TODO: Add options to switch between full view and info view
-                // singeltonCaptureForm = new CaptureDesktopFullView();
-                singeltonCaptureForm = new CaptureDesktopView();
+                singeltonCaptureForm = new CaptureDesktopFullView();
+                // singeltonCaptureForm = new CaptureDesktopView();
 
                 var lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
 

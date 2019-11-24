@@ -43,7 +43,7 @@ namespace PixelCatcher.Views {
             pictureBox.Image = darkDesktopCaptureBitmap;
             pictureBox.Invalidate();
 
-            this.Cursor = Cursors.Cross;
+            Cursor = Cursors.Cross;
         }
 
         public void SetSelectedAreaRectangle(Rectangle selectedAreaRectangle) {
@@ -61,7 +61,7 @@ namespace PixelCatcher.Views {
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
             CaptureMouseUp(this, e);
-            this.Cursor = Cursors.Default;
+            Cursor = Cursors.Default;
 
         }
 

@@ -4,17 +4,18 @@ using System.Drawing;
 using System.Windows.Forms;
 
 namespace PixelCatcher {
-    public partial class ScreenshotView : Form, IScreenshotView {
+    public partial class ScreenshotOffsetView : Form, IScreenshotView {
         private Bitmap screenshotBitmap;
         private int windowPositionOffsetX;
         private int windowPositionOffsetY;
         private int screenshotWidth;
         private int screenshotHeight;
+        private Point mousePosition;
 
         public event EventHandler CopyScreenshotToClipboard;
         public event EventHandler SaveScreenshotToFile;
 
-        public ScreenshotView() {
+        public ScreenshotOffsetView() {
             InitializeComponent();
         }
 
@@ -63,6 +64,10 @@ namespace PixelCatcher {
                 // Update the new location of the window
                 Location = new Point(newWindowPositionX - windowPositionOffsetX, newWindowPositionY - windowPositionOffsetY);
             }
+
+            mousePosition = new Point(e.X, e.Y);
+            pictureBox.Invalidate();
+
         }
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
@@ -80,6 +85,25 @@ namespace PixelCatcher {
 
         private void saveToFileToolStripMenuItem_Click(object sender, EventArgs e) {
             SaveScreenshotToFile?.Invoke(this, e);
+        }
+
+        private void pictureBox_Paint(object sender, PaintEventArgs e) {
+            Pen pen = new Pen(Color.Red, 2);
+            pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+            e.Graphics.DrawRectangle(pen, new Rectangle(-1, -1, mousePosition.X, mousePosition.Y));
+
+            Font drawFont = new Font("Courier New", 10);
+            SolidBrush drawBrush = new SolidBrush(Color.White);
+            StringFormat drawFormat = new StringFormat();
+
+            var offsetText = $"{mousePosition.X},{mousePosition.Y}";
+            var offsetTextSize = e.Graphics.MeasureString(offsetText, drawFont);
+
+            float xPos = (mousePosition.X + offsetTextSize.Width > screenshotBitmap.Width) ? mousePosition.X - offsetTextSize.Width : mousePosition.X;
+            float yPos = (mousePosition.Y < offsetTextSize.Height) ? mousePosition.Y : mousePosition.Y - offsetTextSize.Height;
+
+            e.Graphics.DrawString(offsetText, drawFont, drawBrush, xPos, yPos, drawFormat);
+
         }
 
         private void ScreenshotForm_Shown(object sender, EventArgs e) {

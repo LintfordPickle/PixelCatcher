@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ComponentModel;
 
 namespace PixelCatcher.Models {
     public class ScreenshotModel : INotifyPropertyChanged {
@@ -35,7 +30,7 @@ namespace PixelCatcher.Models {
 
         public ScreenshotModel(Bitmap screenshotBitmap, Point topLeftPoint) {
             this.screenshotBitmap = screenshotBitmap;
-            this.topLeftPosition = topLeftPoint;
+            topLeftPosition = topLeftPoint;
         }
 
         public event PropertyChangedEventHandler PropertyChanged {

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
-using System.Windows.Forms;
 
 namespace PixelCatcher {
     class BitmapService {
         public static Bitmap CropBitmap(Bitmap source, Rectangle srcRect) {
-            if(srcRect == null || srcRect.Width == 0 || srcRect.Height == 0) {
+            if (srcRect == null || srcRect.Width == 0 || srcRect.Height == 0) {
                 return source;
             }
 
@@ -43,7 +41,7 @@ namespace PixelCatcher {
             return adjustedImage;
         }
 
-        public static void SaveBitmapToFile(Bitmap bitmap,String filepath, ImageFormat format) {
+        public static void SaveBitmapToFile(Bitmap bitmap, String filepath, ImageFormat format) {
             bitmap.Save(filepath, format);
         }
     }

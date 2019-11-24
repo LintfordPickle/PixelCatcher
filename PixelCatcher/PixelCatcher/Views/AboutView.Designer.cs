@@ -32,8 +32,8 @@
             this.button1 = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
+            this.VersionLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // button1
@@ -49,7 +49,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(14, 81);
+            this.label1.Location = new System.Drawing.Point(14, 86);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(162, 13);
             this.label1.TabIndex = 1;
@@ -61,23 +61,14 @@
             this.label2.Font = new System.Drawing.Font("Microsoft PhagsPa", 16F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label2.Location = new System.Drawing.Point(12, 9);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(193, 29);
+            this.label2.Size = new System.Drawing.Size(143, 29);
             this.label2.TabIndex = 2;
-            this.label2.Text = "PixelCatcher v0.2";
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(14, 50);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(39, 13);
-            this.label3.TabIndex = 3;
-            this.label3.Text = "github:";
+            this.label2.Text = "PixelCatcher";
             // 
             // linkLabel1
             // 
             this.linkLabel1.AutoSize = true;
-            this.linkLabel1.Location = new System.Drawing.Point(59, 50);
+            this.linkLabel1.Location = new System.Drawing.Point(14, 38);
             this.linkLabel1.Name = "linkLabel1";
             this.linkLabel1.Size = new System.Drawing.Size(228, 13);
             this.linkLabel1.TabIndex = 4;
@@ -85,20 +76,30 @@
             this.linkLabel1.Text = "https://github.com/LintfordPickle/PixelCatcher";
             this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
             // 
-            // AboutForm
+            // VersionLabel
+            // 
+            this.VersionLabel.AutoSize = true;
+            this.VersionLabel.Font = new System.Drawing.Font("Microsoft PhagsPa", 16F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.VersionLabel.Location = new System.Drawing.Point(155, 9);
+            this.VersionLabel.Name = "VersionLabel";
+            this.VersionLabel.Size = new System.Drawing.Size(0, 29);
+            this.VersionLabel.TabIndex = 5;
+            // 
+            // AboutView
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(341, 115);
+            this.Controls.Add(this.VersionLabel);
             this.Controls.Add(this.linkLabel1);
-            this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.button1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Name = "AboutForm";
+            this.Name = "AboutView";
             this.Text = "About";
+            this.Shown += new System.EventHandler(this.AboutView_Shown);
             this.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.AboutForm_MouseDoubleClick);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -110,7 +111,7 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Label label3;
         private System.Windows.Forms.LinkLabel linkLabel1;
+        private System.Windows.Forms.Label VersionLabel;
     }
 }

@@ -1,11 +1,7 @@
 ﻿using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
@@ -73,10 +69,11 @@ namespace PixelCatcher.Presenters {
             var topLeftPoint = GetTopLeftPoint();
 
             // TODO: Add Screenshots to groups (for grouped moving etc.)
-            // Create a new ScreenshotForm and display the jazz
-
             var screenshotModel = new ScreenshotModel(croppedBitmap, topLeftPoint);
+
+            // TODO: Add options to switch between screenshot views
             var newScreenshotForm = new ScreenshotView();
+            // var newScreenshotForm = new ScreenshotOffsetView();
 
             var screenshotPresenter = new ScreenshotPresenter(newScreenshotForm, screenshotModel);
 
@@ -108,6 +105,8 @@ namespace PixelCatcher.Presenters {
             // Update the selected area
             captureMonitorView.StopClickPoint = new Point(StopClickX, StopClickY);
             captureMonitorView.SetSelectedAreaRectangle(GetSelectedCaptureArea());
+
+            UpdatePixelColorUnderMouse(StopClickX, StopClickY);
         }
 
         public Point GetTopLeftPoint() {
@@ -135,7 +134,7 @@ namespace PixelCatcher.Presenters {
             DesktopRectangle = SystemInformation.VirtualScreen;
             OriginalScreenBitmap = ScreenCaptureService.FullScreenshotAsBitmap();
 
-            
+
         }
 
         public Bitmap GetDesktopBitmap() {

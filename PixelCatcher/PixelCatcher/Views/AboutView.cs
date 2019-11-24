@@ -21,5 +21,9 @@ namespace PixelCatcher.Views {
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
             visitAboutUrl(this, e);
         }
+
+        private void AboutView_Shown(object sender, EventArgs e) {
+            VersionLabel.Text = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString()}";
+        }
     }
 }

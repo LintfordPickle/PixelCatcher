@@ -5,7 +5,7 @@ namespace PixelCatcher.Views {
     public interface IAboutView {
 
         event EventHandler visitAboutUrl;
-        
+
         event FormClosedEventHandler FormClosed;
 
         void Show();
