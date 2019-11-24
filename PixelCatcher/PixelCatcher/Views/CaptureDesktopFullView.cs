@@ -15,7 +15,6 @@ namespace PixelCatcher.Views {
         public Bitmap darkDesktopCaptureBitmap { get; private set; }
         public Rectangle SelectedArea { get; private set; }
         public Color pixelUnderCursorColor { get; set; }
-
         public Bitmap previewBitmap { get; private set; }
         public Size previewSize { get; private set; }
         public float previewScale { get; private set; }
@@ -97,56 +96,6 @@ namespace PixelCatcher.Views {
         }
 
         private void PaintCaptureAreaInfo(PaintEventArgs e) {
-            int topLeftX = Math.Min(StartClickPoint.X, StopClickPoint.X);
-            int topLeftY = Math.Min(StartClickPoint.Y, StopClickPoint.Y);
-            int bottomRightX = Math.Max(StartClickPoint.X, StopClickPoint.X);
-            int bottomRightY = Math.Max(StartClickPoint.Y, StopClickPoint.Y);
-
-            // Create font and brush.
-            Font drawFont = new Font("Courier New", 10);
-            SolidBrush drawBrush = new SolidBrush(Color.White);
-            StringFormat drawFormat = new StringFormat();
-
-            var startCoordString = $"{topLeftX},{topLeftY}";
-            var endCoordString = $"{bottomRightX},{bottomRightY}";
-
-            var startStringSize = e.Graphics.MeasureString(startCoordString, drawFont);
-            var endStringSize = e.Graphics.MeasureString(endCoordString, drawFont);
-
-            float xPos = topLeftX;
-            float yPos = (topLeftY < bottomRightY) ? topLeftY - startStringSize.Height : topLeftY - startStringSize.Height;
-
-            if (StartClickPoint.X < StopClickPoint.X)
-                e.Graphics.DrawString(startCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
-            else
-                e.Graphics.DrawString(endCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
-
-            if (isRectangleEmpty(SelectedArea)) {
-                return;
-            }
-
-            int screenshotWidth = Math.Abs(StartClickPoint.X - StopClickPoint.X);
-            int screenshotHeight = Math.Abs(StartClickPoint.Y - StopClickPoint.Y);
-            string screenshotWidthMsg = $"{screenshotWidth} px";
-            string screenshotHeightMsg = $"{screenshotHeight} px";
-
-            xPos = bottomRightX - endStringSize.Width;
-            yPos = (StartClickPoint.Y < StopClickPoint.Y) ? StopClickPoint.Y : bottomRightY;
-
-            if (StartClickPoint.X < StopClickPoint.X)
-                e.Graphics.DrawString(endCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
-            else
-                e.Graphics.DrawString(startCoordString, drawFont, drawBrush, xPos, yPos, drawFormat);
-
-            xPos = bottomRightX - screenshotWidth;
-            yPos = (StartClickPoint.Y < StopClickPoint.Y) ? StopClickPoint.Y : bottomRightY;
-            e.Graphics.DrawString(screenshotWidthMsg, drawFont, drawBrush, xPos, yPos, drawFormat);
-
-            var heightMsgSize = e.Graphics.MeasureString(screenshotHeightMsg, drawFont);
-            xPos = bottomRightX;
-            yPos -= screenshotHeight;
-            drawFormat.FormatFlags = StringFormatFlags.DirectionVertical;
-            e.Graphics.DrawString(screenshotHeightMsg, drawFont, drawBrush, xPos, yPos, drawFormat);
 
         }
 
@@ -198,15 +147,20 @@ namespace PixelCatcher.Views {
 
             var pixelColorStringRGB = GetPixelColorRGB();
             var pixelColorStringHex = GetPixelColorHex();
+            var rectangleBoundsString = $"{SelectedArea.X} {SelectedArea.Y} {SelectedArea.Width} {SelectedArea.Height}";
 
             var xPos = 5 + previewSize.Width + 5f;
             var yPos = 5;
 
+            var fontHeight = drawFont.GetHeight();
             e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushBlack, xPos - 2, yPos + 2, drawFormat);
             e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushWhite, xPos, yPos, drawFormat);
 
-            e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushBlack, xPos - 2, yPos + 25 + 2, drawFormat);
-            e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushWhite, xPos, yPos + 25, drawFormat);
+            e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushBlack, xPos - 2, yPos + fontHeight + 2, drawFormat);
+            e.Graphics.DrawString(pixelColorStringHex, drawFont, drawBrushWhite, xPos, yPos + fontHeight, drawFormat);
+
+            e.Graphics.DrawString(rectangleBoundsString, drawFont, drawBrushBlack, xPos - 2, yPos + fontHeight*2 + 2, drawFormat);
+            e.Graphics.DrawString(rectangleBoundsString, drawFont, drawBrushWhite, xPos, yPos + fontHeight*2, drawFormat);
 
             if (previewBitmap == null) {
                 return;
