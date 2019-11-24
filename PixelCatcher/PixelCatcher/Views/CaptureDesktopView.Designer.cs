@@ -51,7 +51,7 @@
             this.Name = "CaptureMonitorForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "CaptureMonitorForm";
-            // this.TopMost = true;
+            this.TopMost = true;
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.CaptureMonitorForm_KeyDown);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
             this.ResumeLayout(false);
