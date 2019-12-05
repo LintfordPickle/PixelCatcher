@@ -22,9 +22,8 @@ namespace PixelCatcher.Presenters {
             saveFileDialog1.FileName = $"Screenshot_{DateTime.Now.ToString("yyyyMMdd_hhmmfff")}";
             saveFileDialog1.Filter = "Png Image|*.png|JPeg Image|*.jpg|Bitmap Image|*.bmp|Gif Image|*.gif";
             saveFileDialog1.Title = "Save to Image File";
-            saveFileDialog1.ShowDialog();
 
-            if (saveFileDialog1.FileName != "") {
+            if (saveFileDialog1.ShowDialog() == DialogResult.OK && saveFileDialog1.FileName != "") {
                 var imageFormat = ImageFormat.Jpeg;
 
                 // Saves the Image via a FileStream created by the OpenFile method.
