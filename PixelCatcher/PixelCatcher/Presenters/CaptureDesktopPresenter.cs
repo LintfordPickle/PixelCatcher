@@ -2,6 +2,7 @@
 using PixelCatcher.Views;
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
@@ -74,13 +75,15 @@ namespace PixelCatcher.Presenters {
             // When creating the new Screenshot form, make sure to place it on the relevant part of the desktop
             var topLeftPoint = GetTopLeftPoint();
 
+            // Apply offset
+            var leftMostScreen = Screen.AllScreens.OrderBy(s => s.Bounds.Left).First();
+            var leftMostLocation = leftMostScreen.Bounds.Location;
+            topLeftPoint.X += DesktopRectangle.X;
+            topLeftPoint.Y += DesktopRectangle.Y;
+
             // TODO: Add Screenshots to groups (for grouped moving etc.)
             var screenshotModel = new ScreenshotModel(croppedBitmap, topLeftPoint);
-
-            // TODO: Add options to switch between screenshot views
             var newScreenshotForm = new ScreenshotView();
-            // var newScreenshotForm = new ScreenshotOffsetView();
-
             var screenshotPresenter = new ScreenshotPresenter(newScreenshotForm, screenshotModel);
 
             newScreenshotForm.SetBitmap(croppedBitmap, topLeftPoint);
@@ -116,6 +119,7 @@ namespace PixelCatcher.Presenters {
         }
 
         public Point GetTopLeftPoint() {
+            Console.WriteLine($"{Math.Min(StartClickX, StopClickX)},{Math.Min(StartClickY, StopClickY)}");
             return new Point(Math.Min(StartClickX, StopClickX), Math.Min(StartClickY, StopClickY));
         }
 
@@ -139,8 +143,6 @@ namespace PixelCatcher.Presenters {
             //  First capture a screenshot before the creation of our own window
             DesktopRectangle = SystemInformation.VirtualScreen;
             OriginalScreenBitmap = ScreenCaptureService.FullScreenshotAsBitmap();
-
-
         }
 
         public Bitmap GetDesktopBitmap() {

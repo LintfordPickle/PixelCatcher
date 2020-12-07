@@ -134,7 +134,7 @@ namespace PixelCatcher.Views {
             var drawBrushBlack = new SolidBrush(Color.Black);
             var drawBrushWhite = new SolidBrush(Color.White);
 
-            // Draw a background panel
+            // Draw a background panel for the info box
             e.Graphics.FillRectangle(brushPanelBackground, new Rectangle(3, 3, 350, 68));
 
             // Create font and brush.
