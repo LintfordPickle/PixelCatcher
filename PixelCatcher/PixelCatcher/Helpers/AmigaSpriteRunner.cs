@@ -17,6 +17,8 @@ namespace PixelCatcher.Helpers {
 
         public bool Enabled { get; private set; }
         public string SpritesFolder { get; private set; }
+        public int ConfiguredFrameWidth { get; private set; }
+        public int ConfiguredFrameHeight { get; private set; }
         public int IntervalSeconds { get; private set; }
         public int Speed { get; private set; }
 
@@ -56,6 +58,20 @@ namespace PixelCatcher.Helpers {
                 string folderVal = ConfigurationManager.AppSettings["EasterEggSpritesFolder"];
                 SpritesFolder = string.IsNullOrWhiteSpace(folderVal) ? "Sprites" : folderVal.Trim();
 
+                string fwVal = ConfigurationManager.AppSettings["EasterEggFrameWidth"];
+                if (int.TryParse(fwVal, out int fw) && fw > 0) {
+                    ConfiguredFrameWidth = fw;
+                } else {
+                    ConfiguredFrameWidth = 0; // auto-detect
+                }
+
+                string fhVal = ConfigurationManager.AppSettings["EasterEggFrameHeight"];
+                if (int.TryParse(fhVal, out int fh) && fh > 0) {
+                    ConfiguredFrameHeight = fh;
+                } else {
+                    ConfiguredFrameHeight = 0; // auto-detect
+                }
+
                 string intervalVal = ConfigurationManager.AppSettings["EasterEggIntervalSeconds"];
                 if (int.TryParse(intervalVal, out int interval)) {
                     IntervalSeconds = Math.Max(0, interval);
@@ -72,6 +88,8 @@ namespace PixelCatcher.Helpers {
             } catch {
                 Enabled = true;
                 SpritesFolder = "Sprites";
+                ConfiguredFrameWidth = 16;
+                ConfiguredFrameHeight = 16;
                 IntervalSeconds = 120;
                 Speed = 5;
             }
@@ -133,7 +151,7 @@ namespace PixelCatcher.Helpers {
             if (pngFiles == null || pngFiles.Length == 0) return;
 
             string chosenFile = pngFiles[random.Next(pngFiles.Length)];
-            var frames = LoadFramesFromStrip(chosenFile, out int frameWidth, out int frameHeight);
+            var frames = LoadFramesFromStrip(chosenFile, ConfiguredFrameWidth, ConfiguredFrameHeight, out int frameWidth, out int frameHeight);
             if (frames == null || frames.Length == 0) return;
 
             DisposeCurrentFrames();
@@ -151,7 +169,7 @@ namespace PixelCatcher.Helpers {
             animationTimer.Start();
         }
 
-        private static Bitmap[] LoadFramesFromStrip(string filePath, out int frameWidth, out int frameHeight) {
+        private static Bitmap[] LoadFramesFromStrip(string filePath, int customWidth, int customHeight, out int frameWidth, out int frameHeight) {
             frameWidth = 16;
             frameHeight = 16;
             try {
@@ -159,19 +177,26 @@ namespace PixelCatcher.Helpers {
                 using (var source = Image.FromStream(fs)) {
                     int h = source.Height;
                     int w = source.Width;
-                    if (h <= 0 || w < h) return null;
+                    if (h <= 0 || w <= 0) return null;
 
-                    frameWidth = h; // square frames: width == height
-                    frameHeight = h;
-                    int count = w / h;
+                    frameHeight = customHeight > 0 ? customHeight : h;
+                    frameWidth = customWidth > 0 ? customWidth : frameHeight;
+
+                    if (frameWidth <= 0 || frameHeight <= 0) return null;
+
+                    int count = w / frameWidth;
+                    if (count <= 0) return null;
+
                     var frames = new Bitmap[count];
 
                     for (int i = 0; i < count; i++) {
                         var bmp = new Bitmap(frameWidth, frameHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
                         using (var g = Graphics.FromImage(bmp)) {
+                            int sliceW = Math.Min(frameWidth, Math.Max(0, w - i * frameWidth));
+                            int sliceH = Math.Min(frameHeight, h);
                             g.DrawImage(source,
-                                new Rectangle(0, 0, frameWidth, frameHeight),
-                                new Rectangle(i * frameWidth, 0, frameWidth, frameHeight),
+                                new Rectangle(0, 0, sliceW, sliceH),
+                                new Rectangle(i * frameWidth, 0, sliceW, sliceH),
                                 GraphicsUnit.Pixel);
                         }
                         frames[i] = bmp;
