@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Drawing;
 
 namespace PixelCatcher.Models {
@@ -18,6 +18,10 @@ namespace PixelCatcher.Models {
 
         public Point TopLeftPosition {
             get { return topLeftPosition; }
+            set {
+                topLeftPosition = value;
+                FirePropertyChanged("TopLeftPosition");
+            }
         }
 
         public int ScreenshotWidth {

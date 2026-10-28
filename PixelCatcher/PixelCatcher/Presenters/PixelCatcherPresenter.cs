@@ -1,4 +1,4 @@
-﻿using PixelCatcher.Models;
+using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
 using System.ComponentModel;
@@ -43,7 +43,7 @@ namespace PixelCatcher.Presenters {
 
                 // TODO: Add options to switch between full view and info view
                 singeltonCaptureForm = new CaptureDesktopFullView();
-                // singeltonCaptureForm = new CaptureDesktopView();
+
 
                 var lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
 
