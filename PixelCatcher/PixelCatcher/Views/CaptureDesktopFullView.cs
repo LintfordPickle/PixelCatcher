@@ -91,14 +91,12 @@ namespace PixelCatcher.Views {
         }
 
         private void pictureBox_Paint(object sender, PaintEventArgs e) {
-            PaintPreviewImage(e);
-
-            if (isRectangleEmpty(SelectedArea)) {
-                return;
+            if (!isRectangleEmpty(SelectedArea)) {
+                PaintCaptureArea(e);
+                PaintCaptureAreaBoundary(e);
             }
 
-            PaintCaptureArea(e);
-            PaintCaptureAreaBoundary(e);
+            PaintPreviewImage(e);
         }
 
         /// <summary>
@@ -132,16 +130,31 @@ namespace PixelCatcher.Views {
         }
 
         private void PaintPreviewImage(PaintEventArgs e) {
+            // Locate the monitor where the mouse currently resides
+            var currentScreen = Screen.FromPoint(Cursor.Position);
+            int screenLeft = SystemInformation.VirtualScreen.Left;
+            int screenTop = SystemInformation.VirtualScreen.Top;
+
+            // Top-left of the active monitor relative to the full virtual desktop canvas
+            int monitorOriginX = currentScreen.Bounds.Left - screenLeft;
+            int monitorOriginY = currentScreen.Bounds.Top - screenTop;
+
+            int panelMargin = 5;
+            int panelX = monitorOriginX + panelMargin;
+            int panelY = monitorOriginY + panelMargin;
+            int panelWidth = 350;
+            int panelHeight = 68;
+
             // Draw background panel for the info box
-            e.Graphics.FillRectangle(brushPanelBackground, new Rectangle(3, 3, 350, 68));
+            e.Graphics.FillRectangle(brushPanelBackground, new Rectangle(panelX, panelY, panelWidth, panelHeight));
 
             var pixelColorStringRGB = GetPixelColorRGB();
             var pixelColorStringHex = GetPixelColorHex();
             var rectangleAreaInfo = $"{SelectedArea.X} {SelectedArea.Y} {SelectedArea.Width} {SelectedArea.Height}";
 
             var fontHeight = drawFont.GetHeight();
-            var xPos = 5 + previewSize.Width + 5f;
-            var yPos = 5f;
+            var xPos = panelX + previewSize.Width + 5f;
+            var yPos = panelY + 2f;
 
             // Text shadows (black) and foreground (white)
             e.Graphics.DrawString(pixelColorStringRGB, drawFont, drawBrushBlack, xPos - 2, yPos + 2, drawFormat);
@@ -162,7 +175,7 @@ namespace PixelCatcher.Views {
             e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighSpeed;
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 
-            e.Graphics.DrawImage(previewBitmap, 5, 5, previewSize.Width, previewSize.Height);
+            e.Graphics.DrawImage(previewBitmap, panelX + 2, panelY + 2, previewSize.Width, previewSize.Height);
         }
 
         private void UpdatePreviewBitmap() {
