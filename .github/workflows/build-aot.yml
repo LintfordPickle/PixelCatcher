@@ -15,6 +15,8 @@ jobs:
   build-aot:
     name: Build Native AOT (Windows x64)
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -57,32 +59,21 @@ jobs:
 
       - name: Create or Update GitHub Release
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $content = Get-Content "PixelCatcher/PixelCatcher/Properties/AssemblyInfo.cs" -Raw
-          if ($content -match 'AssemblyVersion\("([^"]+)"\)') {
-            $tag = "v$($matches[1])"
-          } else {
-            $tag = "v0.7.0.0"
-          }
-          Write-Host "Target release tag: $tag"
-
-          # Check existing releases or create
-          Write-Host "Creating or updating GitHub Release for $tag..."
-          $result = gh release create $tag "PixelCatcher-win-x64-NativeAOT.zip" `
-            --title "PixelCatcher $tag" `
-            --notes "PixelCatcher $tag - Native AOT standalone binary (Windows x64)." 2>&1
-          Write-Host "gh release create output:"
-          $result | ForEach-Object { Write-Host $_ }
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "create returned non-zero ($LASTEXITCODE), attempting upload clobber..."
-            $uploadResult = gh release upload $tag "PixelCatcher-win-x64-NativeAOT.zip" --clobber 2>&1
-            Write-Host "gh release upload output:"
-            $uploadResult | ForEach-Object { Write-Host $_ }
-            if ($LASTEXITCODE -ne 0) {
-              throw "Release operation failed."
-            }
-          }
+          TAG=$(grep -oP '(?<=AssemblyVersion\(")[^"]*' PixelCatcher/PixelCatcher/Properties/AssemblyInfo.cs)
+          TAG="v${TAG:-0.7.0.0}"
+          echo "Target release tag: $TAG"
+          gh auth status
+          if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "Release $TAG exists. Uploading updated asset..."
+            gh release upload "$TAG" "PixelCatcher-win-x64-NativeAOT.zip" --repo "${{ github.repository }}" --clobber
+          else
+            echo "Creating new GitHub Release $TAG..."
+            gh release create "$TAG" "PixelCatcher-win-x64-NativeAOT.zip" \
+              --repo "${{ github.repository }}" \
+              --title "PixelCatcher $TAG" \
+              --notes "PixelCatcher $TAG - Native AOT standalone binary (Windows x64)."
+          fi
