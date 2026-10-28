@@ -65,10 +65,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           $content = Get-Content "PixelCatcher/PixelCatcher/Properties/AssemblyInfo.cs" -Raw
-          if ($content -match 'AssemblyVersion\("([^"]+)"\)') {
+          if ($content -match '(?m)^\s*\[assembly:\s*AssemblyVersion\("([^"]+)"\)\]') {
             $tag = "v$($matches[1])"
           } else {
-            $tag = "v0.7.0.0"
+            $tag = "v0.7.1.0"
           }
           Write-Host "Publishing GitHub Release for $tag..."
 
