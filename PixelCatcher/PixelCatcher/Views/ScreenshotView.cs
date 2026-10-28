@@ -1,9 +1,9 @@
-﻿using PixelCatcher.Views;
+using PixelCatcher.Views;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace PixelCatcher {
+namespace PixelCatcher.Views {
     public partial class ScreenshotView : Form, IScreenshotView {
         private Bitmap screenshotBitmap;
         private int windowPositionOffsetX;

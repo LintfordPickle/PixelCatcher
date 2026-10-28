@@ -1,4 +1,4 @@
-﻿namespace PixelCatcher
+namespace PixelCatcher.Views
 {
     partial class ScreenshotView
     {

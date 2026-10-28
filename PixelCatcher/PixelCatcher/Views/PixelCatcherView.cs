@@ -1,8 +1,8 @@
-﻿using PixelCatcher.Views;
+using PixelCatcher.Views;
 using System;
 using System.Windows.Forms;
 
-namespace PixelCatcher {
+namespace PixelCatcher.Views {
     public partial class PixelCatcherView : ApplicationContext, IPixelCatcherView {
 
         private System.ComponentModel.IContainer components = null;
