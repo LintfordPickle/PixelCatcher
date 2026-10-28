@@ -1,12 +1,11 @@
 using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
-    class PixelCatcherPresenter : IPixelCatcherPresenter, IMessageFilter {
+    class PixelCatcherPresenter : IPixelCatcherPresenter, IMessageFilter, IDisposable {
 
         public const int MYACTION_HOTKEY_ID = 1;
 
@@ -17,6 +16,7 @@ namespace PixelCatcher.Presenters {
         private IAboutView singeltonAboutForm;
         private readonly AboutInformation aboutInformation;
         private readonly IPixelCatcherView pixelCatcherView;
+        private bool isHotkeyRegistered;
 
         public PixelCatcherPresenter(IAboutView aboutView, IPixelCatcherView pixelCatcherView, AboutInformation aboutInformation) {
             this.aboutInformation = aboutInformation;
@@ -29,7 +29,6 @@ namespace PixelCatcher.Presenters {
             Application.AddMessageFilter(this);
 
             RegisterGlobalHotkey();
-
         }
 
         private void PixelCatcherView_ShowAboutBox(object sender, EventArgs e) {
@@ -40,10 +39,7 @@ namespace PixelCatcher.Presenters {
             if (singeltonCaptureForm != null && !singeltonCaptureForm.IsDisposed) {
                 singeltonCaptureForm.BringToFront();
             } else {
-
-                // TODO: Add options to switch between full view and info view
                 singeltonCaptureForm = new CaptureDesktopFullView();
-
 
                 var lCaptureDesktopPresenter = new CaptureDesktopPresenter(singeltonCaptureForm);
 
@@ -53,13 +49,22 @@ namespace PixelCatcher.Presenters {
         }
 
         private void RegisterGlobalHotkey() {
-            // TODO: Make the global hotkeys configurable
-            if (User32Helper.RegisterHotKey(IntPtr.Zero, MYACTION_HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, Keys.PrintScreen) == 0) {
-                // Is the error that the hotkey is registered?
-                if (Marshal.GetLastWin32Error() == User32Helper.ERROR_HOTKEY_ALREADY_REGISTERED) {
-                    MessageBox.Show("Cannot register hotkey.");
+            if (User32Helper.RegisterHotKey(IntPtr.Zero, MYACTION_HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, Keys.PrintScreen) != 0) {
+                isHotkeyRegistered = true;
+            } else {
+                int errorCode = Marshal.GetLastWin32Error();
+                if (errorCode == User32Helper.ERROR_HOTKEY_ALREADY_REGISTERED) {
+                    MessageBox.Show(
+                        "The global hotkey (Ctrl + Shift + PrintScreen) is already in use by another application.",
+                        "PixelCatcher - Hotkey Conflict",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                 } else {
-                    throw new Win32Exception();
+                    MessageBox.Show(
+                        $"Failed to register hotkey (Win32 Error: {errorCode}).",
+                        "PixelCatcher - Hotkey Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
                 }
             }
         }
@@ -73,14 +78,28 @@ namespace PixelCatcher.Presenters {
         }
 
         public void ShowAboutForm() {
-            if (singeltonAboutForm != null && singeltonAboutForm.IsDisposed) {
+            if (singeltonAboutForm != null && !singeltonAboutForm.IsDisposed) {
                 singeltonAboutForm.BringToFront();
             } else {
                 singeltonAboutForm = new AboutView();
                 singeltonAboutForm.FormClosed += delegate { singeltonAboutForm = null; };
-                singeltonAboutForm.visitAboutUrl += delegate { System.Diagnostics.Process.Start(AboutInformation.websiteUrl); };
+                singeltonAboutForm.visitAboutUrl += delegate {
+                    try {
+                        System.Diagnostics.Process.Start(AboutInformation.websiteUrl);
+                    } catch {
+                        // Ignore if default browser cannot be opened
+                    }
+                };
                 singeltonAboutForm.Show();
             }
+        }
+
+        public void Dispose() {
+            if (isHotkeyRegistered) {
+                User32Helper.UnregisterHotKey(IntPtr.Zero, MYACTION_HOTKEY_ID);
+                isHotkeyRegistered = false;
+            }
+            Application.RemoveMessageFilter(this);
         }
     }
 }

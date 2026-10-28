@@ -63,6 +63,9 @@ namespace PixelCatcher.Views {
 
         protected override void Dispose(bool disposing) {
             if (disposing && (components != null)) {
+                if (notifyIcon1 != null) {
+                    notifyIcon1.Visible = false;
+                }
                 components.Dispose();
             }
             base.Dispose(disposing);

@@ -2,6 +2,7 @@ using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
@@ -18,33 +19,37 @@ namespace PixelCatcher.Presenters {
         }
 
         private void ScreenshotView_SaveScreenshotToFile(object sender, EventArgs e) {
-            var saveFileDialog1 = new SaveFileDialog();
-            saveFileDialog1.FileName = $"Screenshot_{DateTime.Now.ToString("yyyyMMdd_hhmmfff")}";
-            saveFileDialog1.Filter = "Png Image|*.png|JPeg Image|*.jpg|Bitmap Image|*.bmp|Gif Image|*.gif";
-            saveFileDialog1.Title = "Save to Image File";
+            using (var saveFileDialog = new SaveFileDialog()) {
+                saveFileDialog.FileName = $"Screenshot_{DateTime.Now:yyyyMMdd_HHmmss}";
+                saveFileDialog.Filter = "PNG Image (*.png)|*.png|JPEG Image (*.jpg;*.jpeg)|*.jpg;*.jpeg|Bitmap Image (*.bmp)|*.bmp|GIF Image (*.gif)|*.gif";
+                saveFileDialog.DefaultExt = "png";
+                saveFileDialog.AddExtension = true;
+                saveFileDialog.FilterIndex = 1;
+                saveFileDialog.Title = "Save Screenshot to File";
 
-            if (saveFileDialog1.ShowDialog() == DialogResult.OK && saveFileDialog1.FileName != "") {
-                var imageFormat = ImageFormat.Jpeg;
+                if (saveFileDialog.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(saveFileDialog.FileName)) {
+                    var extension = Path.GetExtension(saveFileDialog.FileName)?.ToLowerInvariant();
+                    ImageFormat imageFormat;
 
-                // Saves the Image via a FileStream created by the OpenFile method.
-                var filepath = saveFileDialog1.FileName;
+                    switch (extension) {
+                        case ".jpg":
+                        case ".jpeg":
+                            imageFormat = ImageFormat.Jpeg;
+                            break;
+                        case ".bmp":
+                            imageFormat = ImageFormat.Bmp;
+                            break;
+                        case ".gif":
+                            imageFormat = ImageFormat.Gif;
+                            break;
+                        case ".png":
+                        default:
+                            imageFormat = ImageFormat.Png;
+                            break;
+                    }
 
-                switch (saveFileDialog1.FilterIndex) {
-                    case 1:
-                        imageFormat = ImageFormat.Png;
-                        break;
-                    case 2:
-                        imageFormat = ImageFormat.Jpeg;
-                        break;
-                    case 3:
-                        imageFormat = ImageFormat.Bmp;
-                        break;
-                    case 4:
-                        imageFormat = ImageFormat.Gif;
-                        break;
+                    BitmapService.SaveBitmapToFile(ScreenshotModel.ScreenshotBitmap, saveFileDialog.FileName, imageFormat);
                 }
-
-                BitmapService.SaveBitmapToFile(ScreenshotModel.ScreenshotBitmap, filepath, imageFormat);
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using PixelCatcher.Models;
+using PixelCatcher.Models;
 using PixelCatcher.Presenters;
 using PixelCatcher.Views;
 using System;
@@ -18,14 +18,13 @@ namespace PixelCatcher {
         }
 
         static void StartPixelCapture() {
-            var pixelCatcherView = new PixelCatcherView();
-            var aboutInformation = new AboutInformation();
-            var aboutView = new AboutView();
-
-            new PixelCatcherPresenter(aboutView, pixelCatcherView, aboutInformation);
-
-            Application.Run(pixelCatcherView);
-
+            using (var pixelCatcherView = new PixelCatcherView())
+            using (var aboutView = new AboutView()) {
+                var aboutInformation = new AboutInformation();
+                using (var presenter = new PixelCatcherPresenter(aboutView, pixelCatcherView, aboutInformation)) {
+                    Application.Run(pixelCatcherView);
+                }
+            }
         }
     }
 }
