@@ -80,36 +80,39 @@ namespace PixelCatcher.Views {
         private void PictureBox_Paint(object sender, PaintEventArgs e) {
             if (GroupNumber.HasValue && GroupNumber.Value > 0) {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
 
-                var badgeRect = new Rectangle(5, 5, 22, 22);
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath()) {
+                    using (var fontFamily = new FontFamily("Segoe UI")) {
+                        path.AddString(
+                            GroupNumber.Value.ToString(),
+                            fontFamily,
+                            (int)FontStyle.Bold,
+                            18f,
+                            new Point(6, 4),
+                            StringFormat.GenericDefault);
+                    }
 
-                // Drop shadow
-                using (var shadowBrush = new SolidBrush(Color.FromArgb(90, 0, 0, 0))) {
-                    e.Graphics.FillEllipse(shadowBrush, new Rectangle(6, 6, 22, 22));
-                }
+                    // Stroke / outline around the number
+                    using (var strokePen = new Pen(Color.FromArgb(220, 0, 0, 0), 3f) {
+                        LineJoin = System.Drawing.Drawing2D.LineJoin.Round
+                    }) {
+                        e.Graphics.DrawPath(strokePen, path);
+                    }
 
-                // Badge circle in group color
-                using (var badgeBrush = new SolidBrush(GroupColor)) {
-                    e.Graphics.FillEllipse(badgeBrush, badgeRect);
-                }
+                    // Inner accent stroke if active
+                    if (IsActive) {
+                        using (var activePen = new Pen(Color.White, 1.2f) {
+                            LineJoin = System.Drawing.Drawing2D.LineJoin.Round
+                        }) {
+                            e.Graphics.DrawPath(activePen, path);
+                        }
+                    }
 
-                // White border around badge (thicker if active)
-                Color outlineColor = IsActive ? Color.White : Color.FromArgb(220, 255, 255, 255);
-                float penWidth = IsActive ? 2f : 1.2f;
-                using (var outlinePen = new Pen(outlineColor, penWidth)) {
-                    e.Graphics.DrawEllipse(outlinePen, badgeRect);
-                }
-
-                // Group number text
-                using (var font = new Font("Segoe UI", 9.5f, FontStyle.Bold)) {
-                    TextRenderer.DrawText(
-                        e.Graphics,
-                        GroupNumber.Value.ToString(),
-                        font,
-                        badgeRect,
-                        Color.White,
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    // Body fill of the number in group color
+                    using (var fillBrush = new SolidBrush(GroupColor)) {
+                        e.Graphics.FillPath(fillBrush, path);
+                    }
                 }
             }
         }
