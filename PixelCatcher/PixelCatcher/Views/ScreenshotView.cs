@@ -115,10 +115,29 @@ namespace PixelCatcher.Views {
                     }
                 }
             }
+
+            // Amiga Easter Egg Runner (Zool / Superfrog)
+            if (PixelCatcher.Helpers.AmigaSpriteRunner.Instance.IsRunning &&
+                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.CurrentTargetScreenshot == this) {
+                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.DrawRunner(e.Graphics);
+            }
+        }
+
+        public void InvalidateRunner(Rectangle rect) {
+            if (!IsDisposed && pictureBox != null && !pictureBox.IsDisposed) {
+                pictureBox.Invalidate(rect);
+            }
         }
 
         protected override void OnKeyDown(KeyEventArgs e) {
             base.OnKeyDown(e);
+
+            if (e.Control && (e.KeyCode == Keys.Z || e.KeyCode == Keys.M)) {
+                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.TriggerRun(this);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
 
             if (e.Control) {
                 int? number = null;
