@@ -69,14 +69,20 @@ jobs:
           }
           Write-Host "Target release tag: $tag"
 
-          # Query existing releases
-          $existing = gh release list --json tagName -q ".[].tagName" 2>$null
-          if ($existing -split "`n" | Where-Object { $_.Trim() -eq $tag }) {
-            Write-Host "Release $tag already exists. Uploading updated asset..."
-            gh release upload $tag "PixelCatcher-win-x64-NativeAOT.zip" --clobber
-          } else {
-            Write-Host "Creating new GitHub Release $tag..."
-            gh release create $tag "PixelCatcher-win-x64-NativeAOT.zip" `
-              --title "PixelCatcher $tag" `
-              --generate-notes
+          # Check existing releases or create
+          Write-Host "Creating or updating GitHub Release for $tag..."
+          $result = gh release create $tag "PixelCatcher-win-x64-NativeAOT.zip" `
+            --title "PixelCatcher $tag" `
+            --notes "PixelCatcher $tag - Native AOT standalone binary (Windows x64)." 2>&1
+          Write-Host "gh release create output:"
+          $result | ForEach-Object { Write-Host $_ }
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "create returned non-zero ($LASTEXITCODE), attempting upload clobber..."
+            $uploadResult = gh release upload $tag "PixelCatcher-win-x64-NativeAOT.zip" --clobber 2>&1
+            Write-Host "gh release upload output:"
+            $uploadResult | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release operation failed."
+            }
           }
