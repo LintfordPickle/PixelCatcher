@@ -23,6 +23,9 @@ namespace PixelCatcher.Presenters {
             this.pixelCatcherView = pixelCatcherView;
 
             singeltonAboutForm = aboutView;
+            if (singeltonAboutForm != null) {
+                HookAboutForm(singeltonAboutForm);
+            }
 
             pixelCatcherView.ShowAboutBox += PixelCatcherView_ShowAboutBox;
 
@@ -77,21 +80,25 @@ namespace PixelCatcher.Presenters {
             return false;
         }
 
+        private void HookAboutForm(IAboutView form) {
+            form.FormClosed += delegate { singeltonAboutForm = null; };
+            form.visitAboutUrl += delegate {
+                try {
+                    System.Diagnostics.Process.Start(AboutInformation.websiteUrl);
+                } catch {
+                    // Ignore if default browser cannot be opened
+                }
+            };
+        }
+
         public void ShowAboutForm() {
-            if (singeltonAboutForm != null && !singeltonAboutForm.IsDisposed) {
-                singeltonAboutForm.BringToFront();
-            } else {
+            if (singeltonAboutForm == null || singeltonAboutForm.IsDisposed) {
                 singeltonAboutForm = new AboutView();
-                singeltonAboutForm.FormClosed += delegate { singeltonAboutForm = null; };
-                singeltonAboutForm.visitAboutUrl += delegate {
-                    try {
-                        System.Diagnostics.Process.Start(AboutInformation.websiteUrl);
-                    } catch {
-                        // Ignore if default browser cannot be opened
-                    }
-                };
-                singeltonAboutForm.Show();
+                HookAboutForm(singeltonAboutForm);
             }
+
+            singeltonAboutForm.Show();
+            singeltonAboutForm.BringToFront();
         }
 
         public void Dispose() {
@@ -100,6 +107,13 @@ namespace PixelCatcher.Presenters {
                 isHotkeyRegistered = false;
             }
             Application.RemoveMessageFilter(this);
+
+            if (singeltonAboutForm != null && !singeltonAboutForm.IsDisposed) {
+                if (singeltonAboutForm is IDisposable d) {
+                    d.Dispose();
+                }
+                singeltonAboutForm = null;
+            }
         }
     }
 }
