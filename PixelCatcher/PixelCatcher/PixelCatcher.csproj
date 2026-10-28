@@ -6,5 +6,6 @@
     <ApplicationIcon>pagers_windows.ico</ApplicationIcon>
     <StartupObject>PixelCatcher.Program</StartupObject>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 </Project>
