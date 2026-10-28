@@ -2,5 +2,6 @@
 	"frameWidth": "90",
 	"frameHeight": "50",
 	"numberOfFrames": "1",
+	"moveSpeed": "5",
 	"frameSpeed": "0"
 }

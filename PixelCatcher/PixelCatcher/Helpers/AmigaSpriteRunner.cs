@@ -2,6 +2,7 @@ using PixelCatcher.Views;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -14,12 +15,14 @@ namespace PixelCatcher.Helpers {
         public int FrameWidth { get; set; } = 16;
         public int FrameHeight { get; set; } = 16;
         public int NumberOfFrames { get; set; } = 1;
+        public int MoveSpeed { get; set; } = 5;
         public int FrameSpeed { get; set; } = 5;
 
         public static SpriteAnimationMeta Load(string jsonPath, int fallbackHeight, int imageWidth) {
             var meta = new SpriteAnimationMeta {
                 FrameHeight = fallbackHeight > 0 ? fallbackHeight : 16,
                 FrameWidth = fallbackHeight > 0 ? fallbackHeight : 16,
+                MoveSpeed = 5,
                 FrameSpeed = 5
             };
 
@@ -43,15 +46,24 @@ namespace PixelCatcher.Helpers {
                     if (dict.TryGetValue("numberOfFrames", out int nf) || dict.TryGetValue("number_of_frames", out nf) || dict.TryGetValue("frameCount", out nf) || dict.TryGetValue("frames", out nf)) {
                         meta.NumberOfFrames = nf;
                     }
-                    if (dict.TryGetValue("frameSpeed", out int fs) || dict.TryGetValue("frame_speed", out fs) || dict.TryGetValue("speed", out fs)) {
+                    if (dict.TryGetValue("moveSpeed", out int ms) || dict.TryGetValue("move_speed", out ms) || dict.TryGetValue("movespeed", out ms) || dict.TryGetValue("movementSpeed", out ms)) {
+                        meta.MoveSpeed = ms;
+                    }
+                    if (dict.TryGetValue("frameSpeed", out int fs) || dict.TryGetValue("frame_speed", out fs) || dict.TryGetValue("framespeed", out fs) || dict.TryGetValue("animationSpeed", out fs) || dict.TryGetValue("animSpeed", out fs)) {
                         meta.FrameSpeed = fs;
+                    } else if (dict.TryGetValue("speed", out int sp)) {
+                        if (!dict.ContainsKey("moveSpeed") && !dict.ContainsKey("movespeed")) {
+                            meta.MoveSpeed = sp;
+                        }
+                        meta.FrameSpeed = sp;
                     }
                 } catch { }
             }
 
             if (meta.FrameHeight <= 0) meta.FrameHeight = fallbackHeight > 0 ? fallbackHeight : 16;
             if (meta.FrameWidth <= 0) meta.FrameWidth = meta.FrameHeight;
-            if (meta.FrameSpeed <= 0) meta.FrameSpeed = 5;
+            if (meta.MoveSpeed <= 0) meta.MoveSpeed = 5;
+            if (meta.FrameSpeed < 0) meta.FrameSpeed = 0;
 
             int maxFrames = meta.FrameWidth > 0 ? Math.Max(1, imageWidth / meta.FrameWidth) : 1;
             if (meta.NumberOfFrames <= 0 || meta.NumberOfFrames > maxFrames) {
@@ -80,7 +92,9 @@ namespace PixelCatcher.Helpers {
         public bool Enabled { get; private set; }
         public string SpritesFolder { get; private set; } = "Sprites";
         public int IntervalSeconds { get; private set; }
-        public int Speed { get; private set; } = 5;
+        public int MoveSpeed { get; private set; } = 5;
+        public int FrameSpeed { get; private set; } = 5;
+        public int Speed => MoveSpeed;
 
         public bool IsRunning { get; private set; }
         public int GlobalScreenX { get; private set; }
@@ -96,6 +110,8 @@ namespace PixelCatcher.Helpers {
 
         private readonly Timer periodicTimer;
         private readonly Timer animationTimer;
+        private readonly Stopwatch animationStopwatch = new Stopwatch();
+        private long lastFrameTimeMs = 0;
         private readonly List<WindowRunnerInstance> activeRunners = new List<WindowRunnerInstance>();
         private ScreenshotView lastActiveWindow = null;
         private int lastFinishedScreenLeft = 0;
@@ -134,7 +150,8 @@ namespace PixelCatcher.Helpers {
                 Enabled = true;
                 SpritesFolder = "Sprites";
                 IntervalSeconds = 120;
-                Speed = 5;
+                MoveSpeed = 5;
+                FrameSpeed = 5;
             }
         }
 
@@ -198,12 +215,15 @@ namespace PixelCatcher.Helpers {
             currentFrames = frames;
             SpriteWidth = meta.FrameWidth;
             SpriteHeight = meta.FrameHeight;
-            Speed = meta.FrameSpeed;
+            MoveSpeed = meta.MoveSpeed;
+            FrameSpeed = meta.FrameSpeed;
             CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
 
             activeRunners.Clear();
             lastActiveWindow = null;
             lastFinishedScreenLeft = 0;
+            animationStopwatch.Restart();
+            lastFrameTimeMs = 0;
 
             // Start on the currently rightmost window on the desktop
             var rightmost = activeScreenshots
@@ -283,8 +303,18 @@ namespace PixelCatcher.Helpers {
                 return;
             }
 
-            // Step animation frame
-            CurrentFrameIndex = (CurrentFrameIndex + 1) % currentFrames.Length;
+            // Step animation frame based on FrameSpeed
+            if (currentFrames != null && currentFrames.Length > 1 && FrameSpeed > 0) {
+                int frameDelayMs = FrameSpeed >= 40 ? FrameSpeed : (int)Math.Round(1000.0 / FrameSpeed);
+                long elapsed = animationStopwatch.ElapsedMilliseconds;
+                if (elapsed - lastFrameTimeMs >= frameDelayMs) {
+                    int framesToAdvance = (int)((elapsed - lastFrameTimeMs) / frameDelayMs);
+                    CurrentFrameIndex = (CurrentFrameIndex + framesToAdvance) % currentFrames.Length;
+                    lastFrameTimeMs += (long)framesToAdvance * frameDelayMs;
+                }
+            } else if (currentFrames != null && currentFrames.Length <= 1) {
+                CurrentFrameIndex = 0;
+            }
 
             // 1. Move all currently active window runners leftwards and invalidate
             for (int i = activeRunners.Count - 1; i >= 0; i--) {
@@ -295,9 +325,9 @@ namespace PixelCatcher.Helpers {
                 }
 
                 runner.PreviousLocalX = runner.LocalX;
-                runner.LocalX -= Speed;
+                runner.LocalX -= MoveSpeed;
 
-                int invalidateLeft = Math.Max(0, runner.LocalX - Speed - 2);
+                int invalidateLeft = Math.Max(0, runner.LocalX - MoveSpeed - 2);
                 int invalidateWidth = (runner.PreviousLocalX - runner.LocalX) + SpriteWidth + 10;
                 runner.Window.InvalidateRunner(new Rectangle(invalidateLeft, runner.LocalY, invalidateWidth, SpriteHeight + 4));
             }
@@ -308,7 +338,7 @@ namespace PixelCatcher.Helpers {
                 GlobalScreenX = primary.Window.ImageScreenBounds.Left + primary.LocalX;
                 lastActiveWindow = primary.Window;
             } else {
-                GlobalScreenX -= Speed;
+                GlobalScreenX -= MoveSpeed;
             }
 
             // 3. Dynamic path check: evaluate next window based on current window positions
@@ -414,6 +444,7 @@ namespace PixelCatcher.Helpers {
 
         private void StopRunning() {
             animationTimer.Stop();
+            animationStopwatch.Stop();
             IsRunning = false;
             foreach (var runner in activeRunners) {
                 if (runner.Window != null && !runner.Window.IsDisposed) {
@@ -460,6 +491,7 @@ namespace PixelCatcher.Helpers {
             periodicTimer?.Dispose();
             animationTimer?.Stop();
             animationTimer?.Dispose();
+            animationStopwatch?.Stop();
             DisposeCurrentFrames();
         }
     }
