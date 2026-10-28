@@ -2,7 +2,6 @@ using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Presenters {
@@ -27,7 +26,6 @@ namespace PixelCatcher.Presenters {
             captureMonitorView.CaptureMouseDown += CaptureMonitorView_CaptureMouseDown;
             captureMonitorView.CaptureMouseMove += CaptureMonitorView_CaptureMouseMove;
             captureMonitorView.CaptureMouseUp += CaptureMonitorView_CaptureMouseUp;
-
         }
 
         private void CaptureMonitorView_CaptureMouseUp(object sender, MouseEventArgs e) {
@@ -69,15 +67,13 @@ namespace PixelCatcher.Presenters {
                 return;
             }
 
-            // Only get the rectangle portion of the dekstop we want
+            // Only get the rectangle portion of the desktop we want
             Bitmap croppedBitmap = BitmapService.CropBitmap(OriginalScreenBitmap, GetSelectedCaptureArea());
 
             // When creating the new Screenshot form, make sure to place it on the relevant part of the desktop
             var topLeftPoint = GetTopLeftPoint();
 
-            // Apply offset
-            var leftMostScreen = Screen.AllScreens.OrderBy(s => s.Bounds.Left).First();
-            var leftMostLocation = leftMostScreen.Bounds.Location;
+            // Apply virtual screen offset
             topLeftPoint.X += DesktopRectangle.X;
             topLeftPoint.Y += DesktopRectangle.Y;
 
@@ -99,7 +95,12 @@ namespace PixelCatcher.Presenters {
         }
 
         private void UpdatePixelColorUnderMouse(int x, int y) {
-            captureMonitorView.pixelUnderCursorColor = OriginalScreenBitmap.GetPixel(x, y);
+            if (OriginalScreenBitmap == null) return;
+
+            int clampedX = Math.Max(0, Math.Min(x, OriginalScreenBitmap.Width - 1));
+            int clampedY = Math.Max(0, Math.Min(y, OriginalScreenBitmap.Height - 1));
+
+            captureMonitorView.pixelUnderCursorColor = OriginalScreenBitmap.GetPixel(clampedX, clampedY);
         }
 
         public void SetStartClickPosition(int x, int y) {
@@ -121,7 +122,6 @@ namespace PixelCatcher.Presenters {
         }
 
         public Point GetTopLeftPoint() {
-            Console.WriteLine($"{Math.Min(StartClickX, StopClickX)},{Math.Min(StartClickY, StopClickY)}");
             return new Point(Math.Min(StartClickX, StopClickX), Math.Min(StartClickY, StopClickY));
         }
 
@@ -142,7 +142,7 @@ namespace PixelCatcher.Presenters {
         }
 
         public void CreateFullCaptureAreaShot() {
-            //  First capture a screenshot before the creation of our own window
+            // First capture a screenshot before the creation of our own window
             DesktopRectangle = SystemInformation.VirtualScreen;
             OriginalScreenBitmap = ScreenCaptureService.FullScreenshotAsBitmap();
         }

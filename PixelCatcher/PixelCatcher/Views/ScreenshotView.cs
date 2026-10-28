@@ -11,7 +11,6 @@ namespace PixelCatcher.Views {
         private int screenshotWidth;
         private int screenshotHeight;
 
-        // TODO: Add option to support screenshot border sizes and colors
         public int BorderSize { get; set; }
 
         public event EventHandler CopyScreenshotToClipboard;
@@ -34,17 +33,16 @@ namespace PixelCatcher.Views {
             screenshotWidth = this.screenshotBitmap.Width;
             screenshotHeight = this.screenshotBitmap.Height;
 
-            
             pictureBox.Location = new Point(BorderSize, BorderSize);
             pictureBox.Image = this.screenshotBitmap;
-            pictureBox.Size = new Size(screenshotWidth- BorderSize, screenshotHeight - BorderSize);
+            pictureBox.Size = new Size(screenshotWidth, screenshotHeight);
 
             BackColor = GetRandomColor();
-            Size = new Size(screenshotWidth + BorderSize * 2, screenshotHeight + BorderSize * 2);
+            ClientSize = new Size(screenshotWidth + BorderSize * 2, screenshotHeight + BorderSize * 2);
 
-            // Set the initial position of the screen capture
+            // Set initial position so the cropped image aligns exactly over the captured screen area
             StartPosition = FormStartPosition.Manual;
-            Location = new Point(screenLeft - 1, screenTop - 1);
+            Location = new Point(screenLeft - BorderSize, screenTop - BorderSize);
         }
 
         private Color GetRandomColor() {
@@ -54,7 +52,6 @@ namespace PixelCatcher.Views {
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
             if (e.Button == MouseButtons.Left) {
-                // Mark the start position
                 windowPositionOffsetX = e.X;
                 windowPositionOffsetY = e.Y;
             }
@@ -65,13 +62,11 @@ namespace PixelCatcher.Views {
                 int newWindowPositionX = Cursor.Position.X;
                 int newWindowPositionY = Cursor.Position.Y;
 
-                // Update the new location of the window
                 Location = new Point(newWindowPositionX - windowPositionOffsetX, newWindowPositionY - windowPositionOffsetY);
             }
         }
 
         private void pictureBox_MouseUp(object sender, MouseEventArgs e) {
-
         }
 
         private void pictureBox_MouseDoubleClick(object sender, MouseEventArgs e) {
@@ -79,7 +74,6 @@ namespace PixelCatcher.Views {
         }
 
         private void copyToClipboardToolStripMenuItem_Click(object sender, EventArgs e) {
-
             CopyScreenshotToClipboard?.Invoke(this, e);
         }
 
@@ -88,7 +82,15 @@ namespace PixelCatcher.Views {
         }
 
         private void ScreenshotForm_Shown(object sender, EventArgs e) {
-            Size = new Size(screenshotWidth+ BorderSize, screenshotHeight+ BorderSize);
+            // Keep the exact border size
+            ClientSize = new Size(screenshotWidth + BorderSize * 2, screenshotHeight + BorderSize * 2);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e) {
+            base.OnFormClosed(e);
+            pictureBox.Image = null;
+            screenshotBitmap?.Dispose();
+            screenshotBitmap = null;
         }
     }
 }
