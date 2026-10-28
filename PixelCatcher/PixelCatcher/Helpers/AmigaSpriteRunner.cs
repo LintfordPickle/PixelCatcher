@@ -83,6 +83,7 @@ namespace PixelCatcher.Helpers {
         public int Speed { get; private set; } = 5;
 
         public bool IsRunning { get; private set; }
+        public int GlobalScreenX { get; private set; }
         public int SpriteWidth { get; private set; } = 16;
         public int SpriteHeight { get; private set; } = 16;
         public int CurrentFrameIndex { get; private set; }
@@ -96,9 +97,8 @@ namespace PixelCatcher.Helpers {
         private readonly Timer periodicTimer;
         private readonly Timer animationTimer;
         private readonly List<WindowRunnerInstance> activeRunners = new List<WindowRunnerInstance>();
-        private readonly List<ScreenshotView> windowSequence = new List<ScreenshotView>();
-        private int nextWindowIndex = 0;
-        private int gapRemaining = 0;
+        private ScreenshotView lastActiveWindow = null;
+        private int lastFinishedScreenLeft = 0;
         private Bitmap[] currentFrames;
 
         public AmigaSpriteRunner() {
@@ -202,25 +202,25 @@ namespace PixelCatcher.Helpers {
             CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
 
             activeRunners.Clear();
-            windowSequence.Clear();
-            gapRemaining = 0;
+            lastActiveWindow = null;
+            lastFinishedScreenLeft = 0;
 
-            // Sort active screenshots strictly from right to left across the desktop
-            windowSequence.AddRange(activeScreenshots
+            // Start on the currently rightmost window on the desktop
+            var rightmost = activeScreenshots
                 .OrderByDescending(s => s.ImageScreenBounds.Right)
-                .ThenByDescending(s => s.Area));
+                .ThenByDescending(s => s.Area)
+                .First();
 
-            // Start first window from its right edge
-            var first = windowSequence[0];
-            int startX = first.ImageScreenBounds.Width + 5;
+            int startX = rightmost.ImageScreenBounds.Width + 5;
             activeRunners.Add(new WindowRunnerInstance {
-                Window = first,
+                Window = rightmost,
                 LocalX = startX,
                 PreviousLocalX = startX,
-                LocalY = first.BorderSize + 1
+                LocalY = rightmost.BorderSize + 1
             });
 
-            nextWindowIndex = 1;
+            lastActiveWindow = rightmost;
+            GlobalScreenX = rightmost.ImageScreenBounds.Left + startX;
             CurrentFrameIndex = 0;
             IsRunning = true;
 
@@ -277,10 +277,16 @@ namespace PixelCatcher.Helpers {
                 return;
             }
 
+            var allScreenshots = Models.ScreenshotGroupManager.Instance.GetAllActiveScreenshots();
+            if (allScreenshots.Count == 0) {
+                StopRunning();
+                return;
+            }
+
             // Step animation frame
             CurrentFrameIndex = (CurrentFrameIndex + 1) % currentFrames.Length;
 
-            // 1. Move all active window runners leftwards and invalidate
+            // 1. Move all currently active window runners leftwards and invalidate
             for (int i = activeRunners.Count - 1; i >= 0; i--) {
                 var runner = activeRunners[i];
                 if (runner.Window == null || runner.Window.IsDisposed || !runner.Window.Visible) {
@@ -296,91 +302,100 @@ namespace PixelCatcher.Helpers {
                 runner.Window.InvalidateRunner(new Rectangle(invalidateLeft, runner.LocalY, invalidateWidth, SpriteHeight + 4));
             }
 
-            // 2. Check if next window should be spawned
-            while (nextWindowIndex < windowSequence.Count) {
-                var prevWindow = windowSequence[nextWindowIndex - 1];
-                var nextWindow = windowSequence[nextWindowIndex];
+            // 2. Update GlobalScreenX
+            if (activeRunners.Count > 0) {
+                var primary = activeRunners[activeRunners.Count - 1];
+                GlobalScreenX = primary.Window.ImageScreenBounds.Left + primary.LocalX;
+                lastActiveWindow = primary.Window;
+            } else {
+                GlobalScreenX -= Speed;
+            }
 
-                if (nextWindow == null || nextWindow.IsDisposed || !nextWindow.Visible) {
-                    nextWindowIndex++;
-                    continue;
+            // 3. Dynamic path check: evaluate next window based on current window positions
+            if (activeRunners.Count > 0) {
+                var primary = activeRunners[activeRunners.Count - 1];
+                var curWindow = primary.Window;
+                Rectangle curBounds = curWindow.ImageScreenBounds;
+
+                // Find candidate windows dynamically that extend further left than curWindow
+                var candidates = allScreenshots
+                    .Where(s => s != curWindow && !activeRunners.Any(r => r.Window == s) && s.ImageScreenBounds.Left < curBounds.Left)
+                    .OrderByDescending(s => s.ImageScreenBounds.Right)
+                    .ThenByDescending(s => s.Area)
+                    .ToList();
+
+                if (candidates.Count > 0) {
+                    var nextCandidate = candidates[0];
+                    Rectangle nextBounds = nextCandidate.ImageScreenBounds;
+
+                    bool overlaps = nextBounds.Right > curBounds.Left;
+
+                    if (overlaps) {
+                        // Scenario 1: Overlapping screenshots
+                        // Wait until curWindow has completely finished; do not spawn yet
+                    } else {
+                        // Scenario 2: Adjacent or separated by a gap (nextBounds.Right <= curBounds.Left)
+                        int gap = curBounds.Left - nextBounds.Right;
+                        if (primary.LocalX <= -gap) {
+                            // Fluid transition: spawn second concurrent animation instance entering nextCandidate
+                            int startX = nextBounds.Width + (primary.LocalX + gap);
+                            activeRunners.Add(new WindowRunnerInstance {
+                                Window = nextCandidate,
+                                LocalX = startX,
+                                PreviousLocalX = startX,
+                                LocalY = nextCandidate.BorderSize + 1
+                            });
+                            lastActiveWindow = nextCandidate;
+                        }
+                    }
                 }
+            } else {
+                // No active runners (just finished a window or currently traveling in a gap)
+                // Case A: Check for an overlapping window waiting to receive the runner after exit
+                if (lastActiveWindow != null) {
+                    var overlapping = allScreenshots
+                        .Where(s => s != lastActiveWindow && s.ImageScreenBounds.Right >= lastFinishedScreenLeft && s.ImageScreenBounds.Left < lastFinishedScreenLeft)
+                        .OrderByDescending(s => s.Area)
+                        .FirstOrDefault();
 
-                Rectangle prevBounds = prevWindow.ImageScreenBounds;
-                Rectangle nextBounds = nextWindow.ImageScreenBounds;
-
-                bool overlaps = nextBounds.Right > prevBounds.Left;
-
-                if (overlaps) {
-                    // Scenario 1: Overlapping screenshots
-                    // Wait until prevWindow has completely finished and exited activeRunners
-                    bool prevStillActive = activeRunners.Any(r => r.Window == prevWindow);
-                    if (!prevStillActive) {
-                        // Start nextWindow from its right-hand edge so it enters smoothly
-                        int startX = nextBounds.Width + 5;
+                    if (overlapping != null) {
+                        int startX = overlapping.ImageScreenBounds.Width + 5;
                         activeRunners.Add(new WindowRunnerInstance {
-                            Window = nextWindow,
+                            Window = overlapping,
                             LocalX = startX,
                             PreviousLocalX = startX,
-                            LocalY = nextWindow.BorderSize + 1
+                            LocalY = overlapping.BorderSize + 1
                         });
-                        nextWindowIndex++;
+                        lastActiveWindow = overlapping;
+                        GlobalScreenX = overlapping.ImageScreenBounds.Left + startX;
                     }
-                    break;
-                } else {
-                    // Scenario 2: Adjacent or separated by a gap (nextBounds.Right <= prevBounds.Left)
-                    int gap = prevBounds.Left - nextBounds.Right;
-                    var prevRunner = activeRunners.FirstOrDefault(r => r.Window == prevWindow);
+                }
 
-                    if (prevRunner != null) {
-                        // prevWindow is still running
-                        if (prevRunner.LocalX <= -gap) {
-                            // Fluid transition: spawn second animation instance entering nextWindow
-                            int startX = nextBounds.Width + (prevRunner.LocalX + gap);
-                            activeRunners.Add(new WindowRunnerInstance {
-                                Window = nextWindow,
-                                LocalX = startX,
-                                PreviousLocalX = startX,
-                                LocalY = nextWindow.BorderSize + 1
-                            });
-                            nextWindowIndex++;
-                        }
-                        break;
-                    } else {
-                        // prevWindow already finished (gap >= SpriteWidth)
-                        gapRemaining -= Speed;
-                        if (gapRemaining <= 0) {
-                            int startX = nextBounds.Width + gapRemaining;
-                            activeRunners.Add(new WindowRunnerInstance {
-                                Window = nextWindow,
-                                LocalX = startX,
-                                PreviousLocalX = startX,
-                                LocalY = nextWindow.BorderSize + 1
-                            });
-                            nextWindowIndex++;
-                        }
-                        break;
+                // Case B: If still in gap, check if GlobalScreenX has reached any window's right edge
+                if (activeRunners.Count == 0) {
+                    var inGap = allScreenshots
+                        .Where(s => GlobalScreenX <= s.ImageScreenBounds.Right && GlobalScreenX >= (s.ImageScreenBounds.Left - SpriteWidth))
+                        .OrderByDescending(s => s.Area)
+                        .FirstOrDefault();
+
+                    if (inGap != null) {
+                        int startX = GlobalScreenX - inGap.ImageScreenBounds.Left;
+                        activeRunners.Add(new WindowRunnerInstance {
+                            Window = inGap,
+                            LocalX = startX,
+                            PreviousLocalX = startX,
+                            LocalY = inGap.BorderSize + 1
+                        });
+                        lastActiveWindow = inGap;
                     }
                 }
             }
 
-            // 3. Remove runners that have fully exited past their window's left edge
+            // 4. Remove runners that have fully exited past their window's left edge
             for (int i = activeRunners.Count - 1; i >= 0; i--) {
                 var runner = activeRunners[i];
                 if (runner.LocalX < -SpriteWidth - 2) {
-                    // If next window was waiting for a gap >= SpriteWidth, calculate remaining gap
-                    if (nextWindowIndex < windowSequence.Count && windowSequence[nextWindowIndex - 1] == runner.Window) {
-                        var nextWindow = windowSequence[nextWindowIndex];
-                        if (nextWindow != null && !nextWindow.IsDisposed && nextWindow.Visible) {
-                            int gap = runner.Window.ImageScreenBounds.Left - nextWindow.ImageScreenBounds.Right;
-                            if (gap > SpriteWidth) {
-                                gapRemaining = gap - SpriteWidth;
-                            } else {
-                                gapRemaining = 0;
-                            }
-                        }
-                    }
-
+                    lastFinishedScreenLeft = runner.Window.ImageScreenBounds.Left;
                     if (!runner.Window.IsDisposed) {
                         runner.Window.InvalidateRunner(new Rectangle(0, runner.LocalY, SpriteWidth + 20, SpriteHeight + 4));
                     }
@@ -388,9 +403,12 @@ namespace PixelCatcher.Helpers {
                 }
             }
 
-            // 4. If all runners and all windows are finished, stop animation
-            if (activeRunners.Count == 0 && nextWindowIndex >= windowSequence.Count) {
-                StopRunning();
+            // 5. Termination check: stop ONLY if no active runners AND no windows exist ahead to the left
+            if (activeRunners.Count == 0) {
+                bool anyWindowsAhead = allScreenshots.Any(s => s.ImageScreenBounds.Left < GlobalScreenX);
+                if (!anyWindowsAhead) {
+                    StopRunning();
+                }
             }
         }
 
@@ -403,8 +421,8 @@ namespace PixelCatcher.Helpers {
                 }
             }
             activeRunners.Clear();
-            windowSequence.Clear();
-            gapRemaining = 0;
+            lastActiveWindow = null;
+            lastFinishedScreenLeft = 0;
             DisposeCurrentFrames();
         }
 
