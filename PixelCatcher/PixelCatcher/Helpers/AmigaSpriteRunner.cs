@@ -1,9 +1,9 @@
 using PixelCatcher.Views;
 using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Helpers {
@@ -13,29 +13,28 @@ namespace PixelCatcher.Helpers {
 
         public static AmigaSpriteRunner Instance => instance.Value;
 
-        public const int SpriteWidth = 24;
-        public const int SpriteHeight = 18;
+        private static readonly Random random = new Random();
 
         public bool Enabled { get; private set; }
-        public string CharacterName { get; private set; }
+        public string SpritesFolder { get; private set; }
         public int IntervalSeconds { get; private set; }
         public int Speed { get; private set; }
 
         public bool IsRunning { get; private set; }
         public int RunnerX { get; private set; }
         public int RunnerY { get; private set; }
+        public int SpriteWidth { get; private set; } = 16;
+        public int SpriteHeight { get; private set; } = 16;
         public int CurrentFrameIndex { get; private set; }
+        public string CurrentSpriteName { get; private set; }
         public ScreenshotView CurrentTargetScreenshot { get; private set; }
 
         private readonly Timer periodicTimer;
         private readonly Timer animationTimer;
         private Bitmap[] currentFrames;
-        private Bitmap[] zoolFrames;
-        private Bitmap[] superfrogFrames;
 
         public AmigaSpriteRunner() {
             LoadConfiguration();
-            InitializeSprites();
 
             periodicTimer = new Timer();
             animationTimer = new Timer { Interval = 45 }; // ~22 FPS classic Amiga feel
@@ -54,8 +53,8 @@ namespace PixelCatcher.Helpers {
                 string enabledVal = ConfigurationManager.AppSettings["EasterEggEnabled"];
                 Enabled = string.IsNullOrEmpty(enabledVal) || !string.Equals(enabledVal, "false", StringComparison.OrdinalIgnoreCase);
 
-                string charVal = ConfigurationManager.AppSettings["EasterEggCharacter"];
-                CharacterName = string.IsNullOrEmpty(charVal) ? "Zool" : charVal.Trim();
+                string folderVal = ConfigurationManager.AppSettings["EasterEggSpritesFolder"];
+                SpritesFolder = string.IsNullOrWhiteSpace(folderVal) ? "Sprites" : folderVal.Trim();
 
                 string intervalVal = ConfigurationManager.AppSettings["EasterEggIntervalSeconds"];
                 if (int.TryParse(intervalVal, out int interval)) {
@@ -72,23 +71,48 @@ namespace PixelCatcher.Helpers {
                 }
             } catch {
                 Enabled = true;
-                CharacterName = "Zool";
+                SpritesFolder = "Sprites";
                 IntervalSeconds = 120;
                 Speed = 5;
             }
         }
 
-        private void InitializeSprites() {
-            zoolFrames = BuildZoolFrames();
-            superfrogFrames = BuildSuperfrogFrames();
+        public string ResolveSpritesDirectory() {
+            if (string.IsNullOrWhiteSpace(SpritesFolder)) return null;
 
-            currentFrames = string.Equals(CharacterName, "Superfrog", StringComparison.OrdinalIgnoreCase)
-                ? superfrogFrames
-                : zoolFrames;
+            string folder = SpritesFolder.Trim();
+            if (Path.IsPathRooted(folder)) {
+                return Directory.Exists(folder) ? folder : null;
+            }
+
+            // 1. Check relative to executing assembly's directory (where PixelCatcher.exe lives)
+            try {
+                string assemblyDir = Path.GetDirectoryName(typeof(AmigaSpriteRunner).Assembly.Location);
+                if (!string.IsNullOrEmpty(assemblyDir)) {
+                    string asmCombined = Path.Combine(assemblyDir, folder);
+                    if (Directory.Exists(asmCombined)) return asmCombined;
+                }
+            } catch { }
+
+            // 2. Check relative to AppDomain base directory
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (!string.IsNullOrEmpty(baseDir)) {
+                string combined = Path.Combine(baseDir, folder);
+                if (Directory.Exists(combined)) return combined;
+            }
+
+            // 3. Check relative to working directory
+            string workingDir = Directory.GetCurrentDirectory();
+            if (!string.IsNullOrEmpty(workingDir)) {
+                string workingCombined = Path.Combine(workingDir, folder);
+                if (Directory.Exists(workingCombined)) return workingCombined;
+            }
+
+            return null;
         }
 
         public void TriggerRun(ScreenshotView target = null) {
-            if (!Enabled) return;
+            if (!Enabled || IsRunning) return;
 
             if (target == null || target.IsDisposed) {
                 target = Models.ScreenshotGroupManager.Instance.ActiveScreenshot;
@@ -96,13 +120,67 @@ namespace PixelCatcher.Helpers {
 
             if (target == null || target.IsDisposed) return;
 
+            string dir = ResolveSpritesDirectory();
+            if (string.IsNullOrEmpty(dir)) return;
+
+            string[] pngFiles;
+            try {
+                pngFiles = Directory.GetFiles(dir, "*.png");
+            } catch {
+                return;
+            }
+
+            if (pngFiles == null || pngFiles.Length == 0) return;
+
+            string chosenFile = pngFiles[random.Next(pngFiles.Length)];
+            var frames = LoadFramesFromStrip(chosenFile, out int frameWidth, out int frameHeight);
+            if (frames == null || frames.Length == 0) return;
+
+            DisposeCurrentFrames();
+            currentFrames = frames;
+            SpriteWidth = frameWidth;
+            SpriteHeight = frameHeight;
+            CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
+
             CurrentTargetScreenshot = target;
-            RunnerX = target.ClientSize.Width + 10;
+            RunnerX = target.ClientSize.Width + 5;
             RunnerY = target.BorderSize + 1;
             CurrentFrameIndex = 0;
             IsRunning = true;
 
             animationTimer.Start();
+        }
+
+        private static Bitmap[] LoadFramesFromStrip(string filePath, out int frameWidth, out int frameHeight) {
+            frameWidth = 16;
+            frameHeight = 16;
+            try {
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var source = Image.FromStream(fs)) {
+                    int h = source.Height;
+                    int w = source.Width;
+                    if (h <= 0 || w < h) return null;
+
+                    frameWidth = h; // square frames: width == height
+                    frameHeight = h;
+                    int count = w / h;
+                    var frames = new Bitmap[count];
+
+                    for (int i = 0; i < count; i++) {
+                        var bmp = new Bitmap(frameWidth, frameHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                        using (var g = Graphics.FromImage(bmp)) {
+                            g.DrawImage(source,
+                                new Rectangle(0, 0, frameWidth, frameHeight),
+                                new Rectangle(i * frameWidth, 0, frameWidth, frameHeight),
+                                GraphicsUnit.Pixel);
+                        }
+                        frames[i] = bmp;
+                    }
+                    return frames;
+                }
+            } catch {
+                return null;
+            }
         }
 
         private void PeriodicTimer_Tick(object sender, EventArgs e) {
@@ -112,17 +190,17 @@ namespace PixelCatcher.Helpers {
         }
 
         private void AnimationTimer_Tick(object sender, EventArgs e) {
-            if (CurrentTargetScreenshot == null || CurrentTargetScreenshot.IsDisposed) {
+            if (CurrentTargetScreenshot == null || CurrentTargetScreenshot.IsDisposed || currentFrames == null || currentFrames.Length == 0) {
                 StopRunning();
                 return;
             }
 
             int previousX = RunnerX;
             RunnerX -= Speed;
-            CurrentFrameIndex = (CurrentFrameIndex + 1) % 4;
+            CurrentFrameIndex = (CurrentFrameIndex + 1) % currentFrames.Length;
 
-            // Invalidate only the region where the runner is moving to maintain 0% CPU overhead
-            int invalidateLeft = Math.Max(0, RunnerX - 5);
+            // Invalidate only the region where the runner is moving to maintain 0% idle CPU overhead
+            int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
             int invalidateWidth = (previousX - RunnerX) + SpriteWidth + 10;
             CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
 
@@ -138,6 +216,7 @@ namespace PixelCatcher.Helpers {
                 CurrentTargetScreenshot.InvalidateRunner(new Rectangle(0, RunnerY, SpriteWidth + 20, SpriteHeight + 4));
             }
             CurrentTargetScreenshot = null;
+            DisposeCurrentFrames();
         }
 
         public void DrawRunner(Graphics g) {
@@ -151,246 +230,21 @@ namespace PixelCatcher.Helpers {
             g.DrawImage(frame, RunnerX, RunnerY, SpriteWidth, SpriteHeight);
         }
 
-        #region Sprite Definitions
-
-        private static Bitmap[] BuildZoolFrames() {
-            var palette = new Dictionary<char, Color> {
-                { 'R', Color.FromArgb(192, 57, 43) },  // Crimson Suit
-                { 'r', Color.FromArgb(231, 76, 60) },  // Bright Red highlight
-                { 'K', Color.FromArgb(28, 40, 51) },   // Black Mask & Gloves/Boots
-                { 'Y', Color.FromArgb(241, 196, 15) }, // Yellow Glowing Eyes
-                { 'G', Color.FromArgb(46, 204, 113) }, // Green Belt & Headband
-                { 'g', Color.FromArgb(39, 174, 96) },  // Darker Green
-                { 'S', Color.FromArgb(189, 195, 199) },// Katana blade
-                { 'W', Color.FromArgb(250, 250, 250) } // Katana shine
-            };
-
-            string[] f0 = {
-                "..................S.....",
-                "........RRRR......SS....",
-                ".......RrRRRR.....SS....",
-                "......RrYYYYr....SS.....",
-                "......RrYYYYr...SS..GG..",
-                "......RKKKKr...SS.GGg...",
-                ".......KKKKr..SS.GGg....",
-                ".......GGGGG..SKGGg.....",
-                ".......GGGGG.SKG........",
-                "......RRRRRRRRK.........",
-                ".....RRRRRRRRRR.........",
-                "....KKRRRRRRRR..........",
-                "....KK.RRRRRRRR.........",
-                "...KK..RR...RRR.........",
-                "..KK...RR....RR.........",
-                ".......KK.....KK........",
-                "......KK.......KK.......",
-                ".....KK.........KK......"
-            };
-
-            string[] f1 = {
-                "..................S.....",
-                "........RRRR......SS.GG.",
-                ".......RrRRRR.....SS.GG.",
-                "......RrYYYYr....SS.GG..",
-                "......RrYYYYr...SS..G...",
-                "......RKKKKr...SS.......",
-                ".......KKKKr..SS........",
-                ".......GGGGG.SSK........",
-                ".......GGGGGSK..........",
-                ".....KKRRRRRRRR.........",
-                "....KKRRRRRRRRRR........",
-                "...KK..RRRRRRRR.........",
-                ".......RRRRRRRR.........",
-                "........RRRRRR..........",
-                ".........RR.RR..........",
-                "........KK...KK.........",
-                ".......KK.....KK........",
-                "........................"
-            };
-
-            string[] f2 = {
-                "..................S.....",
-                "........RRRR......SS....",
-                ".......RrRRRR.....SS....",
-                "......RrYYYYr....SS.....",
-                "......RrYYYYr...SS..GG..",
-                "......RKKKKr...SS.GGg...",
-                ".......KKKKr..SS.GGg....",
-                ".......GGGGG..SKGGg.....",
-                ".......GGGGG.SKG........",
-                "......RRRRRRRRK.........",
-                ".....RRRRRRRRRRK........",
-                ".....RRRRRRRR..KK.......",
-                "....RRRRRRRR....KK......",
-                "...RRR...RR......KK.....",
-                "..RR.....RR.......KK....",
-                "..KK.....KK.............",
-                ".KK.......KK............",
-                "KK.........KK..........."
-            };
-
-            string[] f3 = {
-                "...................S....",
-                "........RRRR.......SS...",
-                ".......RrRRRR......SS...",
-                "......RrYYYYr.....SS.GG.",
-                "......RrYYYYr....SS.GGg.",
-                "......RKKKKr....SS.GGg..",
-                ".......KKKKr...SS..G....",
-                ".......GGGGG..SSK.......",
-                ".......GGGGGS.K.........",
-                "......RRRRRRRR..........",
-                ".....RRRRRRRRRR.........",
-                "....KRRRRRRRRRRK........",
-                "...KK..RRRRRR..KK.......",
-                "..KK....RRRR....KK......",
-                ".........RR..............",
-                ".........KK..............",
-                "........KK...............",
-                ".......KK..............."
-            };
-
-            return new Bitmap[] {
-                BuildSpriteBitmap(f0, palette),
-                BuildSpriteBitmap(f1, palette),
-                BuildSpriteBitmap(f2, palette),
-                BuildSpriteBitmap(f3, palette)
-            };
-        }
-
-        private static Bitmap[] BuildSuperfrogFrames() {
-            var palette = new Dictionary<char, Color> {
-                { 'G', Color.FromArgb(39, 174, 96) },  // Frog Green
-                { 'g', Color.FromArgb(46, 204, 113) }, // Light Frog Green
-                { 'W', Color.FromArgb(255, 255, 255) },// White Eyes & Gloves
-                { 'K', Color.FromArgb(20, 20, 20) },   // Black Pupils & Mouth
-                { 'Y', Color.FromArgb(241, 196, 15) }, // Yellow Cape
-                { 'y', Color.FromArgb(249, 231, 159) },// Cape highlight
-                { 'R', Color.FromArgb(231, 76, 60) },  // Red cape lining / boots
-                { 'O', Color.FromArgb(230, 126, 34) }  // Orange buckle
-            };
-
-            string[] f0 = {
-                "..................YYYY..",
-                ".......GGGG.......YYyy..",
-                "......GWWGG......YYyy...",
-                ".....GWWKG......YYyy....",
-                ".....GWWKG.....YYyy.....",
-                "......GGG......YYy......",
-                "......GGGG....YYy.......",
-                ".....GGGGGG..YYy........",
-                "....WGGOGGG.YYy.........",
-                "...W.GGOGGGYYy..........",
-                ".....GGGGGGYy...........",
-                "....GGGGGGGG............",
-                "...GGG....GGG...........",
-                "..GGG......GGG..........",
-                "..GG........GG..........",
-                ".RR..........RR.........",
-                "RR............RR........",
-                "RR.............RR......."
-            };
-
-            string[] f1 = {
-                "................YYYYyy..",
-                ".......GGGG......YYYYyy.",
-                "......GWWGG.......YYYyy.",
-                ".....GWWKG.........YYYy.",
-                ".....GWWKG..........YYy.",
-                "......GGG............Y..",
-                "......GGGG..............",
-                "....WWGGGGGG............",
-                "...WW.GGOGGG............",
-                "......GGOGGG............",
-                ".....GGGGGGGG...........",
-                "....GGGGGGGGGG..........",
-                "....GGGG..GGGG..........",
-                "...GGG......GGG.........",
-                "...RR........RR.........",
-                "..RR..........RR........",
-                "........................",
-                "........................"
-            };
-
-            string[] f2 = {
-                "........................",
-                ".......GGGG.............",
-                "......GWWGG.............",
-                ".....GWWKG.......YYy....",
-                ".....GWWKG......YYyy....",
-                "......GGG......YYYYy....",
-                "......GGGG....YYYYyy....",
-                ".....GGGGGG..YYYYyy.....",
-                "....GGGGOGGWYYYYyy......",
-                "...GGGGOGGG.WYYyy.......",
-                "..GG.GGGGGG..YYy........",
-                ".GG..GGGGGGG............",
-                "GG....GG..GGG...........",
-                "GG.........GGG..........",
-                "RR..........GG..........",
-                "RR...........RR.........",
-                ".RR...........RR........",
-                "...............RR......."
-            };
-
-            string[] f3 = {
-                "..................YYY...",
-                ".......GGGG......YYYy...",
-                "......GWWGG.....YYYYy...",
-                ".....GWWKG.....YYYYy....",
-                ".....GWWKG.....YYYy.....",
-                "......GGG.....YYYy......",
-                "......GGGG...YYYy.......",
-                ".....GGGGGG.YYYYy.......",
-                "....WGGOGGGWYYy.........",
-                "...W.GGOGGG.YY..........",
-                ".....GGGGGG.............",
-                "....GGGGGGGG............",
-                "...GGGG..GGGG...........",
-                "..GGG......GGG..........",
-                "..RR........RR..........",
-                ".RR..........RR.........",
-                "RR............RR........",
-                "........................"
-            };
-
-            return new Bitmap[] {
-                BuildSpriteBitmap(f0, palette),
-                BuildSpriteBitmap(f1, palette),
-                BuildSpriteBitmap(f2, palette),
-                BuildSpriteBitmap(f3, palette)
-            };
-        }
-
-        private static Bitmap BuildSpriteBitmap(string[] rows, Dictionary<char, Color> palette) {
-            var bmp = new Bitmap(SpriteWidth, SpriteHeight);
-            for (int y = 0; y < Math.Min(rows.Length, SpriteHeight); y++) {
-                string row = rows[y];
-                for (int x = 0; x < Math.Min(row.Length, SpriteWidth); x++) {
-                    char c = row[x];
-                    if (palette.TryGetValue(c, out var color)) {
-                        bmp.SetPixel(x, y, color);
-                    } else {
-                        bmp.SetPixel(x, y, Color.Transparent);
-                    }
+        private void DisposeCurrentFrames() {
+            if (currentFrames != null) {
+                foreach (var b in currentFrames) {
+                    b?.Dispose();
                 }
+                currentFrames = null;
             }
-            return bmp;
         }
-
-        #endregion
 
         public void Dispose() {
             periodicTimer?.Stop();
             periodicTimer?.Dispose();
             animationTimer?.Stop();
             animationTimer?.Dispose();
-
-            if (zoolFrames != null) {
-                foreach (var b in zoolFrames) b?.Dispose();
-            }
-            if (superfrogFrames != null) {
-                foreach (var b in superfrogFrames) b?.Dispose();
-            }
+            DisposeCurrentFrames();
         }
     }
 }
