@@ -1,12 +1,66 @@
 using PixelCatcher.Views;
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Helpers {
+    public class SpriteAnimationMeta {
+        public int FrameWidth { get; set; } = 16;
+        public int FrameHeight { get; set; } = 16;
+        public int NumberOfFrames { get; set; } = 1;
+        public int FrameSpeed { get; set; } = 5;
+
+        public static SpriteAnimationMeta Load(string jsonPath, int fallbackHeight, int imageWidth) {
+            var meta = new SpriteAnimationMeta {
+                FrameHeight = fallbackHeight > 0 ? fallbackHeight : 16,
+                FrameWidth = fallbackHeight > 0 ? fallbackHeight : 16,
+                FrameSpeed = 5
+            };
+
+            if (!string.IsNullOrEmpty(jsonPath) && File.Exists(jsonPath)) {
+                try {
+                    string json = File.ReadAllText(jsonPath);
+                    var matches = Regex.Matches(json, @"[""']?([a-zA-Z0-9_]+)[""']?\s*:\s*([0-9]+(?:\.[0-9]+)?)");
+                    var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    foreach (Match m in matches) {
+                        if (m.Groups.Count >= 3 && int.TryParse(m.Groups[2].Value, out int val)) {
+                            dict[m.Groups[1].Value] = val;
+                        }
+                    }
+
+                    if (dict.TryGetValue("frameWidth", out int fw) || dict.TryGetValue("frame_width", out fw) || dict.TryGetValue("width", out fw)) {
+                        meta.FrameWidth = fw;
+                    }
+                    if (dict.TryGetValue("frameHeight", out int fh) || dict.TryGetValue("frame_height", out fh) || dict.TryGetValue("height", out fh)) {
+                        meta.FrameHeight = fh;
+                    }
+                    if (dict.TryGetValue("numberOfFrames", out int nf) || dict.TryGetValue("number_of_frames", out nf) || dict.TryGetValue("frameCount", out nf) || dict.TryGetValue("frames", out nf)) {
+                        meta.NumberOfFrames = nf;
+                    }
+                    if (dict.TryGetValue("frameSpeed", out int fs) || dict.TryGetValue("frame_speed", out fs) || dict.TryGetValue("speed", out fs)) {
+                        meta.FrameSpeed = fs;
+                    }
+                } catch { }
+            }
+
+            if (meta.FrameHeight <= 0) meta.FrameHeight = fallbackHeight > 0 ? fallbackHeight : 16;
+            if (meta.FrameWidth <= 0) meta.FrameWidth = meta.FrameHeight;
+            if (meta.FrameSpeed <= 0) meta.FrameSpeed = 5;
+
+            int maxFrames = meta.FrameWidth > 0 ? Math.Max(1, imageWidth / meta.FrameWidth) : 1;
+            if (meta.NumberOfFrames <= 0 || meta.NumberOfFrames > maxFrames) {
+                meta.NumberOfFrames = maxFrames;
+            }
+
+            return meta;
+        }
+    }
+
     public class AmigaSpriteRunner : IDisposable {
         private static readonly Lazy<AmigaSpriteRunner> instance =
             new Lazy<AmigaSpriteRunner>(() => new AmigaSpriteRunner());
@@ -16,11 +70,9 @@ namespace PixelCatcher.Helpers {
         private static readonly Random random = new Random();
 
         public bool Enabled { get; private set; }
-        public string SpritesFolder { get; private set; }
-        public int ConfiguredFrameWidth { get; private set; }
-        public int ConfiguredFrameHeight { get; private set; }
+        public string SpritesFolder { get; private set; } = "Sprites";
         public int IntervalSeconds { get; private set; }
-        public int Speed { get; private set; }
+        public int Speed { get; private set; } = 5;
 
         public bool IsRunning { get; private set; }
         public int RunnerX { get; private set; }
@@ -58,38 +110,15 @@ namespace PixelCatcher.Helpers {
                 string folderVal = ConfigurationManager.AppSettings["EasterEggSpritesFolder"];
                 SpritesFolder = string.IsNullOrWhiteSpace(folderVal) ? "Sprites" : folderVal.Trim();
 
-                string fwVal = ConfigurationManager.AppSettings["EasterEggFrameWidth"];
-                if (int.TryParse(fwVal, out int fw) && fw > 0) {
-                    ConfiguredFrameWidth = fw;
-                } else {
-                    ConfiguredFrameWidth = 0; // auto-detect
-                }
-
-                string fhVal = ConfigurationManager.AppSettings["EasterEggFrameHeight"];
-                if (int.TryParse(fhVal, out int fh) && fh > 0) {
-                    ConfiguredFrameHeight = fh;
-                } else {
-                    ConfiguredFrameHeight = 0; // auto-detect
-                }
-
                 string intervalVal = ConfigurationManager.AppSettings["EasterEggIntervalSeconds"];
                 if (int.TryParse(intervalVal, out int interval)) {
                     IntervalSeconds = Math.Max(0, interval);
                 } else {
                     IntervalSeconds = 120;
                 }
-
-                string speedVal = ConfigurationManager.AppSettings["EasterEggSpeed"];
-                if (int.TryParse(speedVal, out int speed)) {
-                    Speed = Math.Max(2, Math.Min(15, speed));
-                } else {
-                    Speed = 5;
-                }
             } catch {
                 Enabled = true;
                 SpritesFolder = "Sprites";
-                ConfiguredFrameWidth = 16;
-                ConfiguredFrameHeight = 16;
                 IntervalSeconds = 120;
                 Speed = 5;
             }
@@ -151,13 +180,14 @@ namespace PixelCatcher.Helpers {
             if (pngFiles == null || pngFiles.Length == 0) return;
 
             string chosenFile = pngFiles[random.Next(pngFiles.Length)];
-            var frames = LoadFramesFromStrip(chosenFile, ConfiguredFrameWidth, ConfiguredFrameHeight, out int frameWidth, out int frameHeight);
-            if (frames == null || frames.Length == 0) return;
+            var frames = LoadFramesFromStrip(chosenFile, out SpriteAnimationMeta meta);
+            if (frames == null || frames.Length == 0 || meta == null) return;
 
             DisposeCurrentFrames();
             currentFrames = frames;
-            SpriteWidth = frameWidth;
-            SpriteHeight = frameHeight;
+            SpriteWidth = meta.FrameWidth;
+            SpriteHeight = meta.FrameHeight;
+            Speed = meta.FrameSpeed;
             CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
 
             CurrentTargetScreenshot = target;
@@ -169,9 +199,8 @@ namespace PixelCatcher.Helpers {
             animationTimer.Start();
         }
 
-        private static Bitmap[] LoadFramesFromStrip(string filePath, int customWidth, int customHeight, out int frameWidth, out int frameHeight) {
-            frameWidth = 16;
-            frameHeight = 16;
+        private static Bitmap[] LoadFramesFromStrip(string filePath, out SpriteAnimationMeta meta) {
+            meta = null;
             try {
                 using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 using (var source = Image.FromStream(fs)) {
@@ -179,12 +208,12 @@ namespace PixelCatcher.Helpers {
                     int w = source.Width;
                     if (h <= 0 || w <= 0) return null;
 
-                    frameHeight = customHeight > 0 ? customHeight : h;
-                    frameWidth = customWidth > 0 ? customWidth : frameHeight;
+                    string jsonPath = Path.ChangeExtension(filePath, ".json");
+                    meta = SpriteAnimationMeta.Load(jsonPath, h, w);
 
-                    if (frameWidth <= 0 || frameHeight <= 0) return null;
-
-                    int count = w / frameWidth;
+                    int frameWidth = meta.FrameWidth;
+                    int frameHeight = meta.FrameHeight;
+                    int count = meta.NumberOfFrames;
                     if (count <= 0) return null;
 
                     var frames = new Bitmap[count];
