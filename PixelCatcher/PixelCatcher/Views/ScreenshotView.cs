@@ -116,10 +116,9 @@ namespace PixelCatcher.Views {
                 }
             }
 
-            // Amiga Easter Egg Runner (Zool / Superfrog)
-            if (PixelCatcher.Helpers.AmigaSpriteRunner.Instance.IsRunning &&
-                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.CurrentTargetScreenshot == this) {
-                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.DrawRunner(e.Graphics);
+            // Amiga Easter Egg Runner
+            if (PixelCatcher.Helpers.AmigaSpriteRunner.Instance.IsRunning) {
+                PixelCatcher.Helpers.AmigaSpriteRunner.Instance.DrawRunner(this, e.Graphics);
             }
         }
 

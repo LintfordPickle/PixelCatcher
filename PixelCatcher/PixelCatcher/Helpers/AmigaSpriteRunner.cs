@@ -62,6 +62,13 @@ namespace PixelCatcher.Helpers {
         }
     }
 
+    public class WindowRunnerInstance {
+        public ScreenshotView Window { get; set; }
+        public int LocalX { get; set; }
+        public int PreviousLocalX { get; set; }
+        public int LocalY { get; set; }
+    }
+
     public class AmigaSpriteRunner : IDisposable {
         private static readonly Lazy<AmigaSpriteRunner> instance =
             new Lazy<AmigaSpriteRunner>(() => new AmigaSpriteRunner());
@@ -76,18 +83,22 @@ namespace PixelCatcher.Helpers {
         public int Speed { get; private set; } = 5;
 
         public bool IsRunning { get; private set; }
-        public int GlobalX { get; private set; }
-        public int RunnerX { get; private set; }
-        public int RunnerY { get; private set; }
         public int SpriteWidth { get; private set; } = 16;
         public int SpriteHeight { get; private set; } = 16;
         public int CurrentFrameIndex { get; private set; }
         public string CurrentSpriteName { get; private set; }
-        public ScreenshotView CurrentTargetScreenshot { get; private set; }
+
+        public ScreenshotView CurrentTargetScreenshot => activeRunners.Count > 0 ? activeRunners[0].Window : null;
+        public int RunnerX => activeRunners.Count > 0 ? activeRunners[0].LocalX : 0;
+        public int RunnerY => activeRunners.Count > 0 ? activeRunners[0].LocalY : 0;
+        public IReadOnlyList<WindowRunnerInstance> ActiveRunners => activeRunners.AsReadOnly();
 
         private readonly Timer periodicTimer;
         private readonly Timer animationTimer;
-        private readonly HashSet<ScreenshotView> visitedScreenshots = new HashSet<ScreenshotView>();
+        private readonly List<WindowRunnerInstance> activeRunners = new List<WindowRunnerInstance>();
+        private readonly List<ScreenshotView> windowSequence = new List<ScreenshotView>();
+        private int nextWindowIndex = 0;
+        private int gapRemaining = 0;
         private Bitmap[] currentFrames;
 
         public AmigaSpriteRunner() {
@@ -190,12 +201,26 @@ namespace PixelCatcher.Helpers {
             Speed = meta.FrameSpeed;
             CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
 
-            visitedScreenshots.Clear();
+            activeRunners.Clear();
+            windowSequence.Clear();
+            gapRemaining = 0;
 
-            // Start just off the right edge of the rightmost screenshot window on desktop
-            int globalMaxRight = activeScreenshots.Max(s => s.ImageScreenBounds.Right);
-            GlobalX = globalMaxRight + 5;
-            CurrentTargetScreenshot = null;
+            // Sort active screenshots strictly from right to left across the desktop
+            windowSequence.AddRange(activeScreenshots
+                .OrderByDescending(s => s.ImageScreenBounds.Right)
+                .ThenByDescending(s => s.Area));
+
+            // Start first window from its right edge
+            var first = windowSequence[0];
+            int startX = first.ImageScreenBounds.Width + 5;
+            activeRunners.Add(new WindowRunnerInstance {
+                Window = first,
+                LocalX = startX,
+                PreviousLocalX = startX,
+                LocalY = first.BorderSize + 1
+            });
+
+            nextWindowIndex = 1;
             CurrentFrameIndex = 0;
             IsRunning = true;
 
@@ -252,91 +277,155 @@ namespace PixelCatcher.Helpers {
                 return;
             }
 
-            var activeScreenshots = Models.ScreenshotGroupManager.Instance.GetAllActiveScreenshots();
-            if (activeScreenshots.Count == 0) {
-                StopRunning();
-                return;
-            }
-
-            // Move global position across the desktop to the left
-            GlobalX -= Speed;
+            // Step animation frame
             CurrentFrameIndex = (CurrentFrameIndex + 1) % currentFrames.Length;
 
-            // Check if the runner has passed completely beyond the leftmost screenshot
-            int globalMinLeft = activeScreenshots.Min(s => s.ImageScreenBounds.Left);
-            if (GlobalX < globalMinLeft - SpriteWidth - 10) {
-                StopRunning();
-                return;
+            // 1. Move all active window runners leftwards and invalidate
+            for (int i = activeRunners.Count - 1; i >= 0; i--) {
+                var runner = activeRunners[i];
+                if (runner.Window == null || runner.Window.IsDisposed || !runner.Window.Visible) {
+                    activeRunners.RemoveAt(i);
+                    continue;
+                }
+
+                runner.PreviousLocalX = runner.LocalX;
+                runner.LocalX -= Speed;
+
+                int invalidateLeft = Math.Max(0, runner.LocalX - Speed - 2);
+                int invalidateWidth = (runner.PreviousLocalX - runner.LocalX) + SpriteWidth + 10;
+                runner.Window.InvalidateRunner(new Rectangle(invalidateLeft, runner.LocalY, invalidateWidth, SpriteHeight + 4));
             }
 
-            // 1. If currently on a screenshot, check if it has moved past its left edge
-            if (CurrentTargetScreenshot != null) {
-                if (CurrentTargetScreenshot.IsDisposed || !CurrentTargetScreenshot.Visible) {
-                    CurrentTargetScreenshot = null;
+            // 2. Check if next window should be spawned
+            while (nextWindowIndex < windowSequence.Count) {
+                var prevWindow = windowSequence[nextWindowIndex - 1];
+                var nextWindow = windowSequence[nextWindowIndex];
+
+                if (nextWindow == null || nextWindow.IsDisposed || !nextWindow.Visible) {
+                    nextWindowIndex++;
+                    continue;
+                }
+
+                Rectangle prevBounds = prevWindow.ImageScreenBounds;
+                Rectangle nextBounds = nextWindow.ImageScreenBounds;
+
+                bool overlaps = nextBounds.Right > prevBounds.Left;
+
+                if (overlaps) {
+                    // Scenario 1: Overlapping screenshots
+                    // Wait until prevWindow has completely finished and exited activeRunners
+                    bool prevStillActive = activeRunners.Any(r => r.Window == prevWindow);
+                    if (!prevStillActive) {
+                        // Start nextWindow from its right-hand edge so it enters smoothly
+                        int startX = nextBounds.Width + 5;
+                        activeRunners.Add(new WindowRunnerInstance {
+                            Window = nextWindow,
+                            LocalX = startX,
+                            PreviousLocalX = startX,
+                            LocalY = nextWindow.BorderSize + 1
+                        });
+                        nextWindowIndex++;
+                    }
+                    break;
                 } else {
-                    int localX = GlobalX - CurrentTargetScreenshot.ImageScreenBounds.Left;
+                    // Scenario 2: Adjacent or separated by a gap (nextBounds.Right <= prevBounds.Left)
+                    int gap = prevBounds.Left - nextBounds.Right;
+                    var prevRunner = activeRunners.FirstOrDefault(r => r.Window == prevWindow);
 
-                    if (localX < -SpriteWidth - 2) {
-                        // Exited this screenshot past its left edge
-                        visitedScreenshots.Add(CurrentTargetScreenshot);
-                        CurrentTargetScreenshot.InvalidateRunner(new Rectangle(0, RunnerY, SpriteWidth + 20, SpriteHeight + 4));
-                        CurrentTargetScreenshot = null;
+                    if (prevRunner != null) {
+                        // prevWindow is still running
+                        if (prevRunner.LocalX <= -gap) {
+                            // Fluid transition: spawn second animation instance entering nextWindow
+                            int startX = nextBounds.Width + (prevRunner.LocalX + gap);
+                            activeRunners.Add(new WindowRunnerInstance {
+                                Window = nextWindow,
+                                LocalX = startX,
+                                PreviousLocalX = startX,
+                                LocalY = nextWindow.BorderSize + 1
+                            });
+                            nextWindowIndex++;
+                        }
+                        break;
                     } else {
-                        // Still running on this screenshot
-                        int prevRunnerX = RunnerX;
-                        RunnerX = localX;
-                        RunnerY = CurrentTargetScreenshot.BorderSize + 1;
-
-                        int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
-                        int invalidateWidth = (prevRunnerX - RunnerX) + SpriteWidth + 10;
-                        CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
+                        // prevWindow already finished (gap >= SpriteWidth)
+                        gapRemaining -= Speed;
+                        if (gapRemaining <= 0) {
+                            int startX = nextBounds.Width + gapRemaining;
+                            activeRunners.Add(new WindowRunnerInstance {
+                                Window = nextWindow,
+                                LocalX = startX,
+                                PreviousLocalX = startX,
+                                LocalY = nextWindow.BorderSize + 1
+                            });
+                            nextWindowIndex++;
+                        }
+                        break;
                     }
                 }
             }
 
-            // 2. If not currently on a screenshot (traveling in a gap or just exited), find the next window
-            if (CurrentTargetScreenshot == null) {
-                var candidates = activeScreenshots
-                    .Where(s => !visitedScreenshots.Contains(s))
-                    .Where(s => {
-                        Rectangle b = s.ImageScreenBounds;
-                        return GlobalX >= (b.Left - SpriteWidth) && GlobalX <= b.Right;
-                    })
-                    .OrderByDescending(s => s.Area)
-                    .ToList();
+            // 3. Remove runners that have fully exited past their window's left edge
+            for (int i = activeRunners.Count - 1; i >= 0; i--) {
+                var runner = activeRunners[i];
+                if (runner.LocalX < -SpriteWidth - 2) {
+                    // If next window was waiting for a gap >= SpriteWidth, calculate remaining gap
+                    if (nextWindowIndex < windowSequence.Count && windowSequence[nextWindowIndex - 1] == runner.Window) {
+                        var nextWindow = windowSequence[nextWindowIndex];
+                        if (nextWindow != null && !nextWindow.IsDisposed && nextWindow.Visible) {
+                            int gap = runner.Window.ImageScreenBounds.Left - nextWindow.ImageScreenBounds.Right;
+                            if (gap > SpriteWidth) {
+                                gapRemaining = gap - SpriteWidth;
+                            } else {
+                                gapRemaining = 0;
+                            }
+                        }
+                    }
 
-                if (candidates.Count > 0) {
-                    CurrentTargetScreenshot = candidates[0];
-                    RunnerX = GlobalX - CurrentTargetScreenshot.ImageScreenBounds.Left;
-                    RunnerY = CurrentTargetScreenshot.BorderSize + 1;
-
-                    int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
-                    int invalidateWidth = SpriteWidth + Speed + 10;
-                    CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
+                    if (!runner.Window.IsDisposed) {
+                        runner.Window.InvalidateRunner(new Rectangle(0, runner.LocalY, SpriteWidth + 20, SpriteHeight + 4));
+                    }
+                    activeRunners.RemoveAt(i);
                 }
+            }
+
+            // 4. If all runners and all windows are finished, stop animation
+            if (activeRunners.Count == 0 && nextWindowIndex >= windowSequence.Count) {
+                StopRunning();
             }
         }
 
         private void StopRunning() {
             animationTimer.Stop();
             IsRunning = false;
-            if (CurrentTargetScreenshot != null && !CurrentTargetScreenshot.IsDisposed) {
-                CurrentTargetScreenshot.InvalidateRunner(new Rectangle(0, RunnerY, SpriteWidth + 20, SpriteHeight + 4));
+            foreach (var runner in activeRunners) {
+                if (runner.Window != null && !runner.Window.IsDisposed) {
+                    runner.Window.InvalidateRunner(new Rectangle(0, runner.LocalY, SpriteWidth + 20, SpriteHeight + 4));
+                }
             }
-            CurrentTargetScreenshot = null;
-            visitedScreenshots.Clear();
+            activeRunners.Clear();
+            windowSequence.Clear();
+            gapRemaining = 0;
             DisposeCurrentFrames();
         }
 
-        public void DrawRunner(Graphics g) {
+        public void DrawRunner(ScreenshotView window, Graphics g) {
             if (!IsRunning || currentFrames == null || CurrentFrameIndex < 0 || CurrentFrameIndex >= currentFrames.Length) return;
+
+            var runner = activeRunners.FirstOrDefault(r => r.Window == window);
+            if (runner == null) return;
 
             var frame = currentFrames[CurrentFrameIndex];
             if (frame == null) return;
 
             g.InterpolationMode = InterpolationMode.NearestNeighbor;
             g.PixelOffsetMode = PixelOffsetMode.Half;
-            g.DrawImage(frame, RunnerX, RunnerY, SpriteWidth, SpriteHeight);
+            g.DrawImage(frame, runner.LocalX, runner.LocalY, SpriteWidth, SpriteHeight);
+        }
+
+        public void DrawRunner(Graphics g) {
+            if (activeRunners.Count > 0) {
+                DrawRunner(activeRunners[0].Window, g);
+            }
         }
 
         private void DisposeCurrentFrames() {
