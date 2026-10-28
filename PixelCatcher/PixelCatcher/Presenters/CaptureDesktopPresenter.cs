@@ -1,4 +1,4 @@
-﻿using PixelCatcher.Models;
+using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
 using System.Drawing;
@@ -94,6 +94,8 @@ namespace PixelCatcher.Presenters {
 
         public void Close() {
             captureMonitorView.Close();
+            OriginalScreenBitmap?.Dispose();
+            OriginalScreenBitmap = null;
         }
 
         private void UpdatePixelColorUnderMouse(int x, int y) {

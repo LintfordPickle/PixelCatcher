@@ -1,4 +1,4 @@
-﻿namespace PixelCatcher.Views {
+namespace PixelCatcher.Views {
     partial class CaptureDesktopFullView {
         /// <summary>
         /// Required designer variable.
@@ -12,6 +12,7 @@
         protected override void Dispose(bool disposing) {
             if (disposing && (components != null)) {
                 components.Dispose();
+                DisposeGdiObjects();
             }
             base.Dispose(disposing);
         }
