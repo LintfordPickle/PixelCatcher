@@ -129,6 +129,18 @@ namespace PixelCatcher.Views {
             }
         }
 
+        public Rectangle ImageScreenBounds {
+            get {
+                if (IsDisposed || pictureBox == null || pictureBox.IsDisposed) {
+                    return Bounds;
+                }
+                Point screenTopLeft = PointToScreen(pictureBox.Location);
+                return new Rectangle(screenTopLeft.X, screenTopLeft.Y, pictureBox.Width, pictureBox.Height);
+            }
+        }
+
+        public int Area => ImageScreenBounds.Width * ImageScreenBounds.Height;
+
         protected override void OnKeyDown(KeyEventArgs e) {
             base.OnKeyDown(e);
 

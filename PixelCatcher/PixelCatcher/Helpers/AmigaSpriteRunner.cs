@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -75,6 +76,7 @@ namespace PixelCatcher.Helpers {
         public int Speed { get; private set; } = 5;
 
         public bool IsRunning { get; private set; }
+        public int GlobalX { get; private set; }
         public int RunnerX { get; private set; }
         public int RunnerY { get; private set; }
         public int SpriteWidth { get; private set; } = 16;
@@ -85,6 +87,7 @@ namespace PixelCatcher.Helpers {
 
         private readonly Timer periodicTimer;
         private readonly Timer animationTimer;
+        private readonly HashSet<ScreenshotView> visitedScreenshots = new HashSet<ScreenshotView>();
         private Bitmap[] currentFrames;
 
         public AmigaSpriteRunner() {
@@ -158,14 +161,11 @@ namespace PixelCatcher.Helpers {
             return null;
         }
 
-        public void TriggerRun(ScreenshotView target = null) {
+        public void TriggerRun(ScreenshotView preferredTarget = null) {
             if (!Enabled || IsRunning) return;
 
-            if (target == null || target.IsDisposed) {
-                target = Models.ScreenshotGroupManager.Instance.ActiveScreenshot;
-            }
-
-            if (target == null || target.IsDisposed) return;
+            var activeScreenshots = Models.ScreenshotGroupManager.Instance.GetAllActiveScreenshots();
+            if (activeScreenshots == null || activeScreenshots.Count == 0) return;
 
             string dir = ResolveSpritesDirectory();
             if (string.IsNullOrEmpty(dir)) return;
@@ -190,9 +190,12 @@ namespace PixelCatcher.Helpers {
             Speed = meta.FrameSpeed;
             CurrentSpriteName = Path.GetFileNameWithoutExtension(chosenFile);
 
-            CurrentTargetScreenshot = target;
-            RunnerX = target.ClientSize.Width + 5;
-            RunnerY = target.BorderSize + 1;
+            visitedScreenshots.Clear();
+
+            // Start just off the right edge of the rightmost screenshot window on desktop
+            int globalMaxRight = activeScreenshots.Max(s => s.ImageScreenBounds.Right);
+            GlobalX = globalMaxRight + 5;
+            CurrentTargetScreenshot = null;
             CurrentFrameIndex = 0;
             IsRunning = true;
 
@@ -244,22 +247,73 @@ namespace PixelCatcher.Helpers {
         }
 
         private void AnimationTimer_Tick(object sender, EventArgs e) {
-            if (CurrentTargetScreenshot == null || CurrentTargetScreenshot.IsDisposed || currentFrames == null || currentFrames.Length == 0) {
+            if (!IsRunning || currentFrames == null || currentFrames.Length == 0) {
                 StopRunning();
                 return;
             }
 
-            int previousX = RunnerX;
-            RunnerX -= Speed;
+            var activeScreenshots = Models.ScreenshotGroupManager.Instance.GetAllActiveScreenshots();
+            if (activeScreenshots.Count == 0) {
+                StopRunning();
+                return;
+            }
+
+            // Move global position across the desktop to the left
+            GlobalX -= Speed;
             CurrentFrameIndex = (CurrentFrameIndex + 1) % currentFrames.Length;
 
-            // Invalidate only the region where the runner is moving to maintain 0% idle CPU overhead
-            int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
-            int invalidateWidth = (previousX - RunnerX) + SpriteWidth + 10;
-            CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
-
-            if (RunnerX < -SpriteWidth - 10) {
+            // Check if the runner has passed completely beyond the leftmost screenshot
+            int globalMinLeft = activeScreenshots.Min(s => s.ImageScreenBounds.Left);
+            if (GlobalX < globalMinLeft - SpriteWidth - 10) {
                 StopRunning();
+                return;
+            }
+
+            // 1. If currently on a screenshot, check if it has moved past its left edge
+            if (CurrentTargetScreenshot != null) {
+                if (CurrentTargetScreenshot.IsDisposed || !CurrentTargetScreenshot.Visible) {
+                    CurrentTargetScreenshot = null;
+                } else {
+                    int localX = GlobalX - CurrentTargetScreenshot.ImageScreenBounds.Left;
+
+                    if (localX < -SpriteWidth - 2) {
+                        // Exited this screenshot past its left edge
+                        visitedScreenshots.Add(CurrentTargetScreenshot);
+                        CurrentTargetScreenshot.InvalidateRunner(new Rectangle(0, RunnerY, SpriteWidth + 20, SpriteHeight + 4));
+                        CurrentTargetScreenshot = null;
+                    } else {
+                        // Still running on this screenshot
+                        int prevRunnerX = RunnerX;
+                        RunnerX = localX;
+                        RunnerY = CurrentTargetScreenshot.BorderSize + 1;
+
+                        int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
+                        int invalidateWidth = (prevRunnerX - RunnerX) + SpriteWidth + 10;
+                        CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
+                    }
+                }
+            }
+
+            // 2. If not currently on a screenshot (traveling in a gap or just exited), find the next window
+            if (CurrentTargetScreenshot == null) {
+                var candidates = activeScreenshots
+                    .Where(s => !visitedScreenshots.Contains(s))
+                    .Where(s => {
+                        Rectangle b = s.ImageScreenBounds;
+                        return GlobalX >= (b.Left - SpriteWidth) && GlobalX <= b.Right;
+                    })
+                    .OrderByDescending(s => s.Area)
+                    .ToList();
+
+                if (candidates.Count > 0) {
+                    CurrentTargetScreenshot = candidates[0];
+                    RunnerX = GlobalX - CurrentTargetScreenshot.ImageScreenBounds.Left;
+                    RunnerY = CurrentTargetScreenshot.BorderSize + 1;
+
+                    int invalidateLeft = Math.Max(0, RunnerX - Speed - 2);
+                    int invalidateWidth = SpriteWidth + Speed + 10;
+                    CurrentTargetScreenshot.InvalidateRunner(new Rectangle(invalidateLeft, RunnerY, invalidateWidth, SpriteHeight + 4));
+                }
             }
         }
 
@@ -270,6 +324,7 @@ namespace PixelCatcher.Helpers {
                 CurrentTargetScreenshot.InvalidateRunner(new Rectangle(0, RunnerY, SpriteWidth + 20, SpriteHeight + 4));
             }
             CurrentTargetScreenshot = null;
+            visitedScreenshots.Clear();
             DisposeCurrentFrames();
         }
 

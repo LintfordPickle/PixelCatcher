@@ -29,6 +29,10 @@ namespace PixelCatcher.Models {
 
         public ScreenshotView ActiveScreenshot { get; private set; }
 
+        public List<ScreenshotView> GetAllActiveScreenshots() {
+            return allScreenshots.FindAll(s => s != null && !s.IsDisposed && s.Visible);
+        }
+
         public ScreenshotGroupManager() {
             for (int i = 1; i <= 9; i++) {
                 groups[i] = new List<ScreenshotView>();
