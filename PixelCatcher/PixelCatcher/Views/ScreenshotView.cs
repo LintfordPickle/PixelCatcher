@@ -12,6 +12,8 @@ namespace PixelCatcher.Views {
         private int screenshotWidth;
         private int screenshotHeight;
         private bool isActive;
+        private string title;
+        private TextBox titleInputBox;
 
         public int BorderSize { get; set; }
         public int? GroupNumber { get; set; }
@@ -27,14 +29,37 @@ namespace PixelCatcher.Views {
             }
         }
 
+        public string Title {
+            get => title;
+            set {
+                if (title != value) {
+                    title = value;
+                    TitleChanged?.Invoke(this, EventArgs.Empty);
+                    RefreshVisualState();
+                }
+            }
+        }
+
         public event EventHandler CopyScreenshotToClipboard;
         public event EventHandler SaveScreenshotToFile;
+        public event EventHandler TitleChanged;
 
         public ScreenshotView() {
             InitializeComponent();
             DoubleBuffered = true;
             KeyPreview = true;
             BorderSize = 3;
+
+            titleInputBox = new TextBox {
+                Visible = false,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(28, 32, 38),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold)
+            };
+            titleInputBox.KeyDown += TitleInputBox_KeyDown;
+            titleInputBox.LostFocus += TitleInputBox_LostFocus;
+            pictureBox.Controls.Add(titleInputBox);
 
             pictureBox.Paint += PictureBox_Paint;
             MouseDown += Form_MouseDown;
@@ -77,6 +102,75 @@ namespace PixelCatcher.Views {
             Invalidate();
         }
 
+        public Bitmap GetExportBitmap() {
+            if (string.IsNullOrWhiteSpace(Title) || screenshotBitmap == null) {
+                return screenshotBitmap;
+            }
+
+            var baked = new Bitmap(screenshotBitmap);
+            using (var g = Graphics.FromImage(baked)) {
+                PixelCatcher.Helpers.TitleRenderer.DrawTitleBanner(g, Title, 8, 4, baked.Width - 16);
+            }
+            return baked;
+        }
+
+        public void ShowTitleInput() {
+            int startX = (GroupNumber.HasValue && GroupNumber.Value > 0) ? 34 : 8;
+            int startY = 4;
+            int maxWidth = Math.Max(120, Math.Min(350, pictureBox.Width - startX - 8));
+            if (maxWidth < 60) {
+                startX = 4;
+                maxWidth = Math.Max(30, pictureBox.Width - 8);
+            }
+
+            titleInputBox.Location = new Point(startX, startY);
+            titleInputBox.Size = new Size(maxWidth, 24);
+            titleInputBox.Text = Title ?? string.Empty;
+            titleInputBox.Visible = true;
+            titleInputBox.BringToFront();
+            titleInputBox.Focus();
+            titleInputBox.SelectAll();
+            pictureBox.Invalidate();
+        }
+
+        private void CommitTitleInput() {
+            if (titleInputBox == null || !titleInputBox.Visible) return;
+
+            string newTitle = titleInputBox.Text.Trim();
+            titleInputBox.Visible = false;
+            Title = string.IsNullOrEmpty(newTitle) ? null : newTitle;
+            Focus();
+            RefreshVisualState();
+        }
+
+        private void CancelTitleInput() {
+            if (titleInputBox == null || !titleInputBox.Visible) return;
+
+            titleInputBox.Visible = false;
+            Focus();
+            RefreshVisualState();
+        }
+
+        private void TitleInputBox_KeyDown(object sender, KeyEventArgs e) {
+            if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.F3) {
+                CommitTitleInput();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            } else if (e.KeyCode == Keys.Escape) {
+                CancelTitleInput();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void TitleInputBox_LostFocus(object sender, EventArgs e) {
+            CommitTitleInput();
+        }
+
+        private void setTitleToolStripMenuItem_Click(object sender, EventArgs e) {
+            ShowTitleInput();
+        }
+
         private void PictureBox_Paint(object sender, PaintEventArgs e) {
             if (GroupNumber.HasValue && GroupNumber.Value > 0) {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -116,6 +210,12 @@ namespace PixelCatcher.Views {
                 }
             }
 
+            // Draw Title Banner if set and not currently editing in textbox
+            if ((titleInputBox == null || !titleInputBox.Visible) && !string.IsNullOrWhiteSpace(Title)) {
+                int startX = (GroupNumber.HasValue && GroupNumber.Value > 0) ? 34 : 8;
+                PixelCatcher.Helpers.TitleRenderer.DrawTitleBanner(e.Graphics, Title, startX, 4, pictureBox.Width - startX - 8);
+            }
+
             // Amiga Easter Egg Runner
             if (PixelCatcher.Helpers.AmigaSpriteRunner.Instance.IsRunning) {
                 PixelCatcher.Helpers.AmigaSpriteRunner.Instance.DrawRunner(this, e.Graphics);
@@ -142,6 +242,13 @@ namespace PixelCatcher.Views {
 
         protected override void OnKeyDown(KeyEventArgs e) {
             base.OnKeyDown(e);
+
+            if (e.KeyCode == Keys.F3) {
+                ShowTitleInput();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
 
             if (e.Control && (e.KeyCode == Keys.Z || e.KeyCode == Keys.M)) {
                 PixelCatcher.Helpers.AmigaSpriteRunner.Instance.TriggerRun(this);
@@ -176,6 +283,10 @@ namespace PixelCatcher.Views {
         }
 
         private void pictureBox_MouseDown(object sender, MouseEventArgs e) {
+            if (titleInputBox != null && titleInputBox.Visible) {
+                CommitTitleInput();
+            }
+
             if (e.Button == MouseButtons.Left) {
                 Focus();
                 ScreenshotGroupManager.Instance.SetActive(this);
@@ -200,6 +311,10 @@ namespace PixelCatcher.Views {
         }
 
         private void Form_MouseDown(object sender, MouseEventArgs e) {
+            if (titleInputBox != null && titleInputBox.Visible) {
+                CommitTitleInput();
+            }
+
             if (e.Button == MouseButtons.Left) {
                 Focus();
                 ScreenshotGroupManager.Instance.SetActive(this);

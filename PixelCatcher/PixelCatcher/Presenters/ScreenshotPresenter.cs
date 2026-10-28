@@ -1,6 +1,7 @@
 using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Windows.Forms;
@@ -13,6 +14,17 @@ namespace PixelCatcher.Presenters {
         public ScreenshotPresenter(IScreenshotView screenshotView, ScreenshotModel screenshotModel) {
             ScreenshotView = screenshotView;
             ScreenshotModel = screenshotModel;
+
+            ScreenshotView.Title = ScreenshotModel.Title;
+            ScreenshotView.TitleChanged += (s, e) => {
+                ScreenshotModel.Title = ScreenshotView.Title;
+            };
+
+            ScreenshotModel.PropertyChanged += (s, e) => {
+                if (e.PropertyName == "Title" && ScreenshotView.Title != ScreenshotModel.Title) {
+                    ScreenshotView.Title = ScreenshotModel.Title;
+                }
+            };
 
             ScreenshotView.CopyScreenshotToClipboard += ScreenshotView_CopyScreenshotToClipboard;
             ScreenshotView.SaveScreenshotToFile += ScreenshotView_SaveScreenshotToFile;
@@ -48,13 +60,21 @@ namespace PixelCatcher.Presenters {
                             break;
                     }
 
-                    BitmapService.SaveBitmapToFile(ScreenshotModel.ScreenshotBitmap, saveFileDialog.FileName, imageFormat);
+                    Bitmap exportBitmap = ScreenshotView.GetExportBitmap();
+                    try {
+                        BitmapService.SaveBitmapToFile(exportBitmap, saveFileDialog.FileName, imageFormat);
+                    } finally {
+                        if (exportBitmap != null && exportBitmap != ScreenshotModel.ScreenshotBitmap) {
+                            exportBitmap.Dispose();
+                        }
+                    }
                 }
             }
         }
 
         private void ScreenshotView_CopyScreenshotToClipboard(object sender, EventArgs e) {
-            Clipboard.SetImage(ScreenshotModel.ScreenshotBitmap);
+            Bitmap exportBitmap = ScreenshotView.GetExportBitmap();
+            Clipboard.SetImage(exportBitmap);
         }
     }
 }

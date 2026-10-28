@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 
 namespace PixelCatcher.Views {
@@ -6,6 +6,10 @@ namespace PixelCatcher.Views {
 
         event EventHandler CopyScreenshotToClipboard;
         event EventHandler SaveScreenshotToFile;
+        event EventHandler TitleChanged;
+
+        string Title { get; set; }
+        Bitmap GetExportBitmap();
 
         void SetBitmap(Bitmap screenshotBitmap, Point topLeft);
         void Show();

@@ -31,6 +31,8 @@ namespace PixelCatcher.Views
             this.components = new System.ComponentModel.Container();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.setTitleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.saveToFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copyToClipboardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
@@ -53,22 +55,37 @@ namespace PixelCatcher.Views
             // contextMenuStrip1
             // 
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.setTitleToolStripMenuItem,
+            this.toolStripSeparator1,
             this.saveToFileToolStripMenuItem,
             this.copyToClipboardToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(172, 48);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(181, 76);
+            // 
+            // setTitleToolStripMenuItem
+            // 
+            this.setTitleToolStripMenuItem.Name = "setTitleToolStripMenuItem";
+            this.setTitleToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.setTitleToolStripMenuItem.Text = "Set Title...";
+            this.setTitleToolStripMenuItem.ShortcutKeyDisplayString = "F3";
+            this.setTitleToolStripMenuItem.Click += new System.EventHandler(this.setTitleToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(177, 6);
             // 
             // saveToFileToolStripMenuItem
             // 
             this.saveToFileToolStripMenuItem.Name = "saveToFileToolStripMenuItem";
-            this.saveToFileToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.saveToFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.saveToFileToolStripMenuItem.Text = "Save to File";
             this.saveToFileToolStripMenuItem.Click += new System.EventHandler(this.saveToFileToolStripMenuItem_Click);
             // 
             // copyToClipboardToolStripMenuItem
             // 
             this.copyToClipboardToolStripMenuItem.Name = "copyToClipboardToolStripMenuItem";
-            this.copyToClipboardToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.copyToClipboardToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.copyToClipboardToolStripMenuItem.Text = "Copy to Clipboard";
             this.copyToClipboardToolStripMenuItem.Click += new System.EventHandler(this.copyToClipboardToolStripMenuItem_Click);
             // 
@@ -92,6 +109,8 @@ namespace PixelCatcher.Views
 
         private System.Windows.Forms.PictureBox pictureBox;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
+        private System.Windows.Forms.ToolStripMenuItem setTitleToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripMenuItem saveToFileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem copyToClipboardToolStripMenuItem;
     }
