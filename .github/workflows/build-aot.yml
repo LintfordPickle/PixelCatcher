@@ -58,29 +58,30 @@ jobs:
           retention-days: 30
 
       - name: Create or Update GitHub Release
-        if: always()
-        shell: bash
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          {
-            echo "=== Auth Status ==="
-            gh auth status
-            echo "=== Ref Info ==="
-            echo "GITHUB_REF: $GITHUB_REF"
-            echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
-            TAG="v0.7.0.0"
-            echo "Target Tag: $TAG"
-            echo "=== Create Release ==="
-            gh release create "$TAG" "PixelCatcher-win-x64-NativeAOT.zip" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "PixelCatcher $TAG" \
-              --notes "PixelCatcher $TAG - Native AOT standalone binary (Windows x64)."
-          } > release_diag.log 2>&1
+          $content = Get-Content "PixelCatcher/PixelCatcher/Properties/AssemblyInfo.cs" -Raw
+          if ($content -match 'AssemblyVersion\("([^"]+)"\)') {
+            $tag = "v$($matches[1])"
+          } else {
+            $tag = "v0.7.0.0"
+          }
+          Write-Host "Publishing GitHub Release for $tag..."
 
-      - name: Upload Diagnostic Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-diagnostic-log
-          path: release_diag.log
+          gh auth status
+
+          $null = gh release view $tag --repo $env:GH_REPO 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists. Updating asset..."
+            gh release upload $tag "PixelCatcher-win-x64-NativeAOT.zip" --repo $env:GH_REPO --clobber
+          } else {
+            Write-Host "Creating new GitHub Release $tag..."
+            gh release create $tag "PixelCatcher-win-x64-NativeAOT.zip" `
+              --repo $env:GH_REPO `
+              --title "PixelCatcher $tag" `
+              --notes "PixelCatcher $tag - Native AOT standalone binary (Windows x64)."
+          }
