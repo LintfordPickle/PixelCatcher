@@ -163,21 +163,23 @@ namespace PixelCatcher.Helpers {
                 return Directory.Exists(folder) ? folder : null;
             }
 
-            // 1. Check relative to executing assembly's directory (where PixelCatcher.exe lives)
+            // 1. Check relative to base directory (where PixelCatcher.exe lives)
             try {
-                string assemblyDir = Path.GetDirectoryName(typeof(AmigaSpriteRunner).Assembly.Location);
-                if (!string.IsNullOrEmpty(assemblyDir)) {
-                    string asmCombined = Path.Combine(assemblyDir, folder);
-                    if (Directory.Exists(asmCombined)) return asmCombined;
+                string baseDir = AppContext.BaseDirectory;
+                if (!string.IsNullOrEmpty(baseDir)) {
+                    string combined = Path.Combine(baseDir, folder);
+                    if (Directory.Exists(combined)) return combined;
                 }
             } catch { }
 
             // 2. Check relative to AppDomain base directory
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            if (!string.IsNullOrEmpty(baseDir)) {
-                string combined = Path.Combine(baseDir, folder);
-                if (Directory.Exists(combined)) return combined;
-            }
+            try {
+                string domainBase = AppDomain.CurrentDomain.BaseDirectory;
+                if (!string.IsNullOrEmpty(domainBase)) {
+                    string combined = Path.Combine(domainBase, folder);
+                    if (Directory.Exists(combined)) return combined;
+                }
+            } catch { }
 
             // 3. Check relative to working directory
             string workingDir = Directory.GetCurrentDirectory();

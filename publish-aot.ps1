@@ -28,9 +28,6 @@ dotnet publish PixelCatcher/PixelCatcher/PixelCatcher.csproj `
     -c $Configuration `
     -f net10.0-windows `
     -r win-x64 `
-    -p:PublishAot=true `
-    -p:StripSymbols=true `
-    -p:OptimizationPreference=Speed `
     -o $OutputDir
 
 if ($LASTEXITCODE -eq 0) {

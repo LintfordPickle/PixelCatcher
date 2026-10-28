@@ -34,9 +34,6 @@ jobs:
           -c Release
           -f net10.0-windows
           -r win-x64
-          -p:PublishAot=true
-          -p:StripSymbols=true
-          -p:OptimizationPreference=Speed
           -o ./publish/aot
 
       - name: Copy Sprites to Publish Directory
