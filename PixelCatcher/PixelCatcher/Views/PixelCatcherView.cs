@@ -1,5 +1,6 @@
 using PixelCatcher.Views;
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace PixelCatcher.Views {
@@ -25,7 +26,6 @@ namespace PixelCatcher.Views {
 
         private void InitializeComponent() {
             components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PixelCatcherView));
             notifyIcon1 = new NotifyIcon(components);
             contextMenuStrip1 = new ContextMenuStrip(components);
             exitToolStripMenuItem = new ToolStripMenuItem();
@@ -34,7 +34,11 @@ namespace PixelCatcher.Views {
             // notifyIcon1
             // 
             notifyIcon1.ContextMenuStrip = contextMenuStrip1;
-            notifyIcon1.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon1.Icon")));
+            try {
+                notifyIcon1.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
+            } catch {
+                notifyIcon1.Icon = SystemIcons.Application;
+            }
             notifyIcon1.Text = "PixelCatcher";
             notifyIcon1.Visible = true;
             // 

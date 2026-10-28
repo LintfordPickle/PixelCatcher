@@ -28,7 +28,6 @@ namespace PixelCatcher.Views
         /// </summary>
         private void InitializeComponent()
         {
-			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutView));
 			this.button1 = new System.Windows.Forms.Button();
 			this.label1 = new System.Windows.Forms.Label();
 			this.label2 = new System.Windows.Forms.Label();
@@ -96,7 +95,9 @@ namespace PixelCatcher.Views
 			this.Controls.Add(this.label1);
 			this.Controls.Add(this.button1);
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+			try {
+				this.Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath);
+			} catch { }
 			this.Name = "AboutView";
 			this.Text = "About";
 			this.Shown += new System.EventHandler(this.AboutView_Shown);
