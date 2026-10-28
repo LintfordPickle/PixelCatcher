@@ -14,6 +14,11 @@ namespace PixelCatcher {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => {
+                MessageBox.Show($"Unhandled Exception:\n{e.ExceptionObject}", "PixelCatcher Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
+
             StartPixelCapture();
         }
 

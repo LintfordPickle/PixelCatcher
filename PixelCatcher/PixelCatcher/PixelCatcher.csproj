@@ -16,6 +16,7 @@
     <PublishAot>true</PublishAot>
     <StripSymbols>true</StripSymbols>
     <OptimizationPreference>Speed</OptimizationPreference>
+    <CustomResourceTypesSupport>true</CustomResourceTypesSupport>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
