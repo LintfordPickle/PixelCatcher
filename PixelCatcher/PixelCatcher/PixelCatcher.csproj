@@ -1,16 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFrameworks>net472;net10.0-windows</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>pagers_windows.ico</ApplicationIcon>
     <StartupObject>PixelCatcher.Program</StartupObject>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+    <NoWarn>$(NoWarn);WFO1000;WFO0003;CA1416;NU1510</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
     <Reference Include="System.Configuration" />
   </ItemGroup>
+
   <ItemGroup>
     <None Update="Sprites\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

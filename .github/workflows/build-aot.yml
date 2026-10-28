@@ -1,0 +1,68 @@
+name: Build Native AOT
+
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-aot:
+    name: Build Native AOT (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore PixelCatcher/PixelCatcher.sln
+
+      - name: Publish Native AOT
+        run: >
+          dotnet publish PixelCatcher/PixelCatcher/PixelCatcher.csproj
+          -c Release
+          -f net10.0-windows
+          -r win-x64
+          -p:PublishAot=true
+          -p:StripSymbols=true
+          -p:OptimizationPreference=Speed
+          -o ./publish/aot
+
+      - name: Copy Sprites to Publish Directory
+        shell: pwsh
+        run: |
+          if (Test-Path "PixelCatcher/PixelCatcher/Sprites") {
+            Copy-Item -Path "PixelCatcher/PixelCatcher/Sprites" -Destination "./publish/aot/Sprites" -Recurse -Force
+          }
+
+      - name: Create ZIP Package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "./publish/aot/*" -DestinationPath "./PixelCatcher-win-x64-NativeAOT.zip" -Force
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixelCatcher-win-x64-NativeAOT
+          path: PixelCatcher-win-x64-NativeAOT.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PixelCatcher-win-x64-NativeAOT.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
