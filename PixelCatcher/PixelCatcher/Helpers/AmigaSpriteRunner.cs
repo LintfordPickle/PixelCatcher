@@ -25,7 +25,7 @@ namespace PixelCatcher.Helpers {
             if (!string.IsNullOrEmpty(jsonPath) && File.Exists(jsonPath)) {
                 try {
                     string json = File.ReadAllText(jsonPath);
-                    var matches = Regex.Matches(json, @"[""']?([a-zA-Z0-9_]+)[""']?\s*:\s*([0-9]+(?:\.[0-9]+)?)");
+                    var matches = Regex.Matches(json, @"[""']?([a-zA-Z0-9_]+)[""']?\s*:\s*[""']?\s*([0-9]+(?:\.[0-9]+)?)\s*[""']?");
                     var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                     foreach (Match m in matches) {
                         if (m.Groups.Count >= 3 && int.TryParse(m.Groups[2].Value, out int val)) {
