@@ -1,4 +1,4 @@
-﻿namespace PixelCatcher.Views
+namespace PixelCatcher.Views
 {
     partial class AboutView
     {
@@ -53,7 +53,7 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(162, 13);
             this.label1.TabIndex = 1;
-            this.label1.Text = "Created by John Hampson, 2019";
+            this.label1.Text = "Created by John Hampson, 2019-2026";
             // 
             // label2
             // 
