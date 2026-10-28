@@ -22,7 +22,7 @@ namespace PixelCatcher {
             var aboutInformation = new AboutInformation();
             var aboutView = new AboutView();
 
-            var pixelCatcherPresenter = new PixelCatcherPresenter(aboutView, pixelCatcherView, aboutInformation);
+            new PixelCatcherPresenter(aboutView, pixelCatcherView, aboutInformation);
 
             Application.Run(pixelCatcherView);
 

@@ -1,4 +1,4 @@
-﻿using PixelCatcher.Models;
+using PixelCatcher.Models;
 using PixelCatcher.Views;
 using System;
 using System.Drawing.Imaging;
