@@ -155,50 +155,93 @@ namespace PixelCatcher.Helpers {
             }
         }
 
-        private static void EnsureRoamingSprites(string targetDir) {
+        public static string GetOrCreateSpritesDirectory() {
+            try {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                if (!string.IsNullOrEmpty(appData)) {
+                    string roamingDir = Path.Combine(appData, "PixelCatcher", "Sprites");
+                    EnsureSpritesDirectory(roamingDir);
+                    return roamingDir;
+                }
+            } catch { }
+            return null;
+        }
+
+        private static void EnsureSpritesDirectory(string targetDir) {
             try {
                 if (!Directory.Exists(targetDir)) {
                     Directory.CreateDirectory(targetDir);
                 }
 
-                // If target directory already contains png files, do not overwrite existing files
-                if (Directory.GetFiles(targetDir, "*.png").Length == 0) {
-                    // 1. Try to copy from AppContext.BaseDirectory/Sprites if it exists
-                    try {
-                        string baseDir = AppContext.BaseDirectory;
-                        if (!string.IsNullOrEmpty(baseDir)) {
-                            string localSprites = Path.Combine(baseDir, "Sprites");
-                            if (Directory.Exists(localSprites)) {
-                                foreach (string file in Directory.GetFiles(localSprites, "*.*")) {
-                                    string dest = Path.Combine(targetDir, Path.GetFileName(file));
-                                    if (!File.Exists(dest)) {
-                                        File.Copy(file, dest, true);
-                                    }
+                // 1. Copy any text/template/json files from baseDir/Sprites if present
+                try {
+                    string baseDir = AppContext.BaseDirectory;
+                    if (!string.IsNullOrEmpty(baseDir)) {
+                        string localSprites = Path.Combine(baseDir, "Sprites");
+                        if (Directory.Exists(localSprites)) {
+                            foreach (string file in Directory.GetFiles(localSprites, "*.*")) {
+                                string dest = Path.Combine(targetDir, Path.GetFileName(file));
+                                if (!File.Exists(dest)) {
+                                    File.Copy(file, dest, false);
                                 }
                             }
                         }
-                    } catch { }
+                    }
+                } catch { }
 
-                    // 2. Extract embedded resources for default sprites if still empty
-                    try {
-                        var assembly = typeof(AmigaSpriteRunner).Assembly;
-                        const string prefix = "PixelCatcher.Sprites.";
-                        foreach (string resName in assembly.GetManifestResourceNames()) {
-                            if (resName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
-                                string filename = resName.Substring(prefix.Length);
-                                string destPath = Path.Combine(targetDir, filename);
-                                if (!File.Exists(destPath)) {
-                                    using (var stream = assembly.GetManifestResourceStream(resName)) {
-                                        if (stream != null) {
-                                            using (var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write)) {
-                                                stream.CopyTo(fileStream);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch { }
+                // 2. Ensure template.json and README.txt exist in targetDir
+                string templatePath = Path.Combine(targetDir, "template.json");
+                if (!File.Exists(templatePath)) {
+                    File.WriteAllText(templatePath,
+@"{
+  ""frameWidth"": 32,
+  ""frameHeight"": 32,
+  ""numberOfFrames"": 4,
+  ""moveSpeed"": 5,
+  ""frameSpeed"": 8
+}
+");
+                }
+
+                string readmePath = Path.Combine(targetDir, "README.txt");
+                if (!File.Exists(readmePath)) {
+                    File.WriteAllText(readmePath,
+@"PixelCatcher - Custom Easter Egg Sprites
+========================================
+
+PixelCatcher can run animated 2D pixel-art sprites across pinned screenshot windows.
+You can place your own custom animated sprites into this folder.
+
+Folder Location:
+  %APPDATA%\PixelCatcher\Sprites
+  (You can open this folder anytime from the PixelCatcher tray icon menu -> 'Open Sprites Folder...')
+
+How it works:
+1. Create a transparent PNG image that contains a horizontal strip of animation frames.
+   Example: If each animation frame is 32x32 pixels and you have 4 frames, the image will be 128x32 pixels.
+2. Save your PNG file with any name, for example: 'my_runner.png'.
+3. Create a matching JSON file with the exact same base name: 'my_runner.json'.
+4. Copy both files into this Sprites folder.
+
+JSON Configuration Options:
+---------------------------
+- 'frameWidth'     : (integer) Width of each frame in pixels (default: height of image).
+- 'frameHeight'    : (integer) Height of each frame in pixels (default: height of image).
+- 'numberOfFrames' : (integer) Total number of frames in the horizontal strip.
+- 'moveSpeed'      : (integer) Speed in pixels per tick at which the sprite moves across windows (default: 5).
+- 'frameSpeed'     : (integer) Animation playback speed (default: 5).
+                     * 1 to 39: Interpreted as frames per second (e.g. 8 = 8 fps).
+                     * 40 or greater: Interpreted as milliseconds per frame (e.g. 100 = 100ms per frame).
+
+Supported Alternate Field Names:
+- Frame Width: frameWidth, frame_width, width
+- Frame Height: frameHeight, frame_height, height
+- Frames: numberOfFrames, number_of_frames, frameCount, frames
+- Movement Speed: moveSpeed, move_speed, movespeed, movementSpeed, speed
+- Animation Speed: frameSpeed, frame_speed, framespeed, animationSpeed, animSpeed, speed
+
+See 'template.json' for a minimal configuration example.
+");
                 }
             } catch { }
         }
@@ -216,7 +259,7 @@ namespace PixelCatcher.Helpers {
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 if (!string.IsNullOrEmpty(appData)) {
                     string roamingDir = Path.Combine(appData, "PixelCatcher", folder);
-                    EnsureRoamingSprites(roamingDir);
+                    EnsureSpritesDirectory(roamingDir);
                     if (Directory.Exists(roamingDir) && Directory.GetFiles(roamingDir, "*.png").Length > 0) {
                         return roamingDir;
                     }
@@ -248,16 +291,8 @@ namespace PixelCatcher.Helpers {
                 if (Directory.Exists(workingCombined) && Directory.GetFiles(workingCombined, "*.png").Length > 0) return workingCombined;
             }
 
-            // 5. Default back to roaming folder (even if empty, so caller gets a valid directory)
-            try {
-                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                if (!string.IsNullOrEmpty(appData)) {
-                    string roamingDir = Path.Combine(appData, "PixelCatcher", folder);
-                    if (Directory.Exists(roamingDir)) return roamingDir;
-                }
-            } catch { }
-
-            return null;
+            // 5. Default back to roaming folder (creates it with templates if needed)
+            return GetOrCreateSpritesDirectory();
         }
 
         public void TriggerRun(ScreenshotView preferredTarget = null) {

@@ -94,7 +94,7 @@ namespace PixelCatcher.Views {
 
         private void openSpritesFolderToolStripMenuItem_Click(object sender, EventArgs e) {
             try {
-                string dir = PixelCatcher.Helpers.AmigaSpriteRunner.Instance.ResolveSpritesDirectory();
+                string dir = PixelCatcher.Helpers.AmigaSpriteRunner.GetOrCreateSpritesDirectory();
                 if (!string.IsNullOrEmpty(dir) && System.IO.Directory.Exists(dir)) {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                         FileName = dir,

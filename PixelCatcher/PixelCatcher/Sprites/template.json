@@ -1,0 +1,7 @@
+{
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "numberOfFrames": 4,
+  "moveSpeed": 5,
+  "frameSpeed": 8
+}
