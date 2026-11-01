@@ -12,6 +12,7 @@ namespace PixelCatcher.Views {
         private ContextMenuStrip contextMenuStrip1;
         private ToolStripMenuItem exitToolStripMenuItem;
         private ToolStripMenuItem aboutToolStripMenuItem;
+        private ToolStripMenuItem openSpritesFolderToolStripMenuItem;
 
         public event EventHandler ShowAboutBox;
 
@@ -30,6 +31,7 @@ namespace PixelCatcher.Views {
             contextMenuStrip1 = new ContextMenuStrip(components);
             exitToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
+            openSpritesFolderToolStripMenuItem = new ToolStripMenuItem();
             // 
             // notifyIcon1
             // 
@@ -46,21 +48,30 @@ namespace PixelCatcher.Views {
             // 
             contextMenuStrip1.Items.AddRange(new ToolStripItem[] {
             aboutToolStripMenuItem,
+            openSpritesFolderToolStripMenuItem,
+            new ToolStripSeparator(),
             exitToolStripMenuItem});
             contextMenuStrip1.Name = "contextMenuStrip1";
-            contextMenuStrip1.Size = new System.Drawing.Size(181, 70);
+            contextMenuStrip1.Size = new System.Drawing.Size(190, 92);
+            // 
+            // openSpritesFolderToolStripMenuItem
+            // 
+            openSpritesFolderToolStripMenuItem.Name = "openSpritesFolderToolStripMenuItem";
+            openSpritesFolderToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
+            openSpritesFolderToolStripMenuItem.Text = "Open Sprites Folder...";
+            openSpritesFolderToolStripMenuItem.Click += new System.EventHandler(openSpritesFolderToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            exitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            exitToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             exitToolStripMenuItem.Text = "Exit";
             exitToolStripMenuItem.Click += new System.EventHandler(exitToolStripMenuItem_Click);
             // 
             // aboutToolStripMenuItem
             // 
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            aboutToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += new System.EventHandler(aboutToolStripMenuItem_Click);
         }
@@ -79,6 +90,18 @@ namespace PixelCatcher.Views {
             notifyIcon1.Icon = null;
             notifyIcon1.ContextMenuStrip = null;
             notifyIcon1.Visible = false;
+        }
+
+        private void openSpritesFolderToolStripMenuItem_Click(object sender, EventArgs e) {
+            try {
+                string dir = PixelCatcher.Helpers.AmigaSpriteRunner.Instance.ResolveSpritesDirectory();
+                if (!string.IsNullOrEmpty(dir) && System.IO.Directory.Exists(dir)) {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                        FileName = dir,
+                        UseShellExecute = true
+                    });
+                }
+            } catch { }
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e) {

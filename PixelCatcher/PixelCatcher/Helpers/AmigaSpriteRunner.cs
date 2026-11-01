@@ -155,6 +155,54 @@ namespace PixelCatcher.Helpers {
             }
         }
 
+        private static void EnsureRoamingSprites(string targetDir) {
+            try {
+                if (!Directory.Exists(targetDir)) {
+                    Directory.CreateDirectory(targetDir);
+                }
+
+                // If target directory already contains png files, do not overwrite existing files
+                if (Directory.GetFiles(targetDir, "*.png").Length == 0) {
+                    // 1. Try to copy from AppContext.BaseDirectory/Sprites if it exists
+                    try {
+                        string baseDir = AppContext.BaseDirectory;
+                        if (!string.IsNullOrEmpty(baseDir)) {
+                            string localSprites = Path.Combine(baseDir, "Sprites");
+                            if (Directory.Exists(localSprites)) {
+                                foreach (string file in Directory.GetFiles(localSprites, "*.*")) {
+                                    string dest = Path.Combine(targetDir, Path.GetFileName(file));
+                                    if (!File.Exists(dest)) {
+                                        File.Copy(file, dest, true);
+                                    }
+                                }
+                            }
+                        }
+                    } catch { }
+
+                    // 2. Extract embedded resources for default sprites if still empty
+                    try {
+                        var assembly = typeof(AmigaSpriteRunner).Assembly;
+                        const string prefix = "PixelCatcher.Sprites.";
+                        foreach (string resName in assembly.GetManifestResourceNames()) {
+                            if (resName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
+                                string filename = resName.Substring(prefix.Length);
+                                string destPath = Path.Combine(targetDir, filename);
+                                if (!File.Exists(destPath)) {
+                                    using (var stream = assembly.GetManifestResourceStream(resName)) {
+                                        if (stream != null) {
+                                            using (var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write)) {
+                                                stream.CopyTo(fileStream);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch { }
+                }
+            } catch { }
+        }
+
         public string ResolveSpritesDirectory() {
             if (string.IsNullOrWhiteSpace(SpritesFolder)) return null;
 
@@ -163,30 +211,51 @@ namespace PixelCatcher.Helpers {
                 return Directory.Exists(folder) ? folder : null;
             }
 
-            // 1. Check relative to base directory (where PixelCatcher.exe lives)
+            // 1. Primary: Roaming AppData directory (%APPDATA%\PixelCatcher\<folder>)
+            try {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                if (!string.IsNullOrEmpty(appData)) {
+                    string roamingDir = Path.Combine(appData, "PixelCatcher", folder);
+                    EnsureRoamingSprites(roamingDir);
+                    if (Directory.Exists(roamingDir) && Directory.GetFiles(roamingDir, "*.png").Length > 0) {
+                        return roamingDir;
+                    }
+                }
+            } catch { }
+
+            // 2. Fallback relative to base directory (where PixelCatcher.exe lives)
             try {
                 string baseDir = AppContext.BaseDirectory;
                 if (!string.IsNullOrEmpty(baseDir)) {
                     string combined = Path.Combine(baseDir, folder);
-                    if (Directory.Exists(combined)) return combined;
+                    if (Directory.Exists(combined) && Directory.GetFiles(combined, "*.png").Length > 0) return combined;
                 }
             } catch { }
 
-            // 2. Check relative to AppDomain base directory
+            // 3. Fallback relative to AppDomain base directory
             try {
                 string domainBase = AppDomain.CurrentDomain.BaseDirectory;
                 if (!string.IsNullOrEmpty(domainBase)) {
                     string combined = Path.Combine(domainBase, folder);
-                    if (Directory.Exists(combined)) return combined;
+                    if (Directory.Exists(combined) && Directory.GetFiles(combined, "*.png").Length > 0) return combined;
                 }
             } catch { }
 
-            // 3. Check relative to working directory
+            // 4. Fallback relative to working directory
             string workingDir = Directory.GetCurrentDirectory();
             if (!string.IsNullOrEmpty(workingDir)) {
                 string workingCombined = Path.Combine(workingDir, folder);
-                if (Directory.Exists(workingCombined)) return workingCombined;
+                if (Directory.Exists(workingCombined) && Directory.GetFiles(workingCombined, "*.png").Length > 0) return workingCombined;
             }
+
+            // 5. Default back to roaming folder (even if empty, so caller gets a valid directory)
+            try {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                if (!string.IsNullOrEmpty(appData)) {
+                    string roamingDir = Path.Combine(appData, "PixelCatcher", folder);
+                    if (Directory.Exists(roamingDir)) return roamingDir;
+                }
+            } catch { }
 
             return null;
         }
